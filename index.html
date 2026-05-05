@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de CEPs - Cidade Ocidental</title>
+    <!-- Incluindo o Tailwind CSS para um design moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilo para a fonte Inter, limpa e profissional */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Scrollbar customizado para a lista de opções */
+        .options-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .options-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .options-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        .options-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        /* Classe para destacar o item selecionado pelo teclado */
+        .highlighted {
+            background-color: #dbeafe; /* Cor azul bem clara (Tailwind blue-100) */
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-2xl mx-auto bg-white rounded-lg shadow-xl p-8">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Consulta Estruturada de CEPs</h1>
+            <p class="text-gray-600 mt-2">Selecione ou digite para buscar o endereço e encontrar o CEP.</p>
+        </div>
+
+        <div class="space-y-4">
+            <!-- Componente de Busca: Bairro -->
+            <div id="containerBairro">
+                <label for="comboBairro" class="block text-sm font-medium text-gray-700 mb-1">1. Bairro</label>
+                <div id="comboBairro" class="relative"></div>
+            </div>
+
+            <!-- Componente de Busca: Nível 2 (SQ ou Quadra) -->
+            <div id="containerNivel2" class="hidden">
+                <label for="comboNivel2" class="block text-sm font-medium text-gray-700 mb-1">2. Nível 2</label>
+                <div id="comboNivel2" class="relative"></div>
+            </div>
+
+            <!-- Componente de Busca: Nível 3 (Quadra ou Conjunto) -->
+            <div id="containerNivel3" class="hidden">
+                <label for="comboNivel3" class="block text-sm font-medium text-gray-700 mb-1">3. Nível 3</label>
+                <div id="comboNivel3" class="relative"></div>
+            </div>
+        </div>
+
+        <div id="areaResultados" class="mt-8 text-center min-h-[76px]"></div>
+
+        <!-- Botão Limpar -->
+        <div class="mt-6 border-t pt-6 text-center">
+            <button id="botaoLimpar" class="bg-slate-500 text-white font-medium py-2 px-5 rounded-lg hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-opacity-50 transition-colors duration-200">
+                Limpar Busca
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- BASE DE DADOS ---
+        // A estrutura agora suporta bairros com 1, 2 ou 3 níveis de endereço.
+        const dadosCep = [
+            {
+                bairro: "Cidade Ocidental",
+                nivel2: [
+                    { nome: "SQ 01", nivel3: [ { nome: "Sem quadra", cep: "72880-230" }, { nome: "Quadra 01", cep: "72880-233" }, { nome: "Quadra 10", cep: "72880-260" }, { nome: "Quadra 11", cep: "72880-263" }, { nome: "Quadra 12", cep: "72880-266" }, { nome: "Quadra 13", cep: "72880-269" }, { nome: "Quadra 14", cep: "72880-272" }, { nome: "Quadra 15", cep: "72880-275" }, { nome: "Quadra 16", cep: "72880-278" }, { nome: "Quadra 02", cep: "72880-236" }, { nome: "Quadra 03", cep: "72880-239" }, { nome: "Quadra 04", cep: "72880-242" }, { nome: "Quadra 05", cep: "72880-245" }, { nome: "Quadra 06", cep: "72880-248" }, { nome: "Quadra 07", cep: "72880-251" }, { nome: "Quadra 08", cep: "72880-254" }, { nome: "Quadra 09", cep: "72880-257" } ] },
+                    { nome: "SQ 02", nivel3: [ { nome: "Sem quadra", cep: "72880-191" }, { nome: "Quadra 01", cep: "72880-227" }, { nome: "Quadra 10", cep: "72880-200" }, { nome: "Quadra 11", cep: "72880-197" }, { nome: "Quadra 12", cep: "72880-194" }, { nome: "Quadra 02", cep: "72880-224" }, { nome: "Quadra 03", cep: "72880-221" }, { nome: "Quadra 04", cep: "72880-218" }, { nome: "Quadra 05", cep: "72880-215" }, { nome: "Quadra 06", cep: "72880-212" }, { nome: "Quadra 07", cep: "72880-209" }, { nome: "Quadra 08", cep: "72880-206" }, { nome: "Quadra 09", cep: "72880-203" } ] },
+                    { nome: "SQ 03", nivel3: [ { nome: "Sem quadra", cep: "72880-281" }, { nome: "Quadra 01", cep: "72880-284" }, { nome: "Quadra 10", cep: "72880-311" }, { nome: "Quadra 11", cep: "72880-314" }, { nome: "Quadra 12", cep: "72880-317" }, { nome: "Quadra 02", cep: "72880-287" }, { nome: "Quadra 03", cep: "72880-290" }, { nome: "Quadra 04", cep: "72880-293" }, { nome: "Quadra 05", cep: "72880-296" }, { nome: "Quadra 06", cep: "72880-299" }, { nome: "Quadra 07", cep: "72880-302" }, { nome: "Quadra 08", cep: "72880-305" }, { nome: "Quadra 09", cep: "72880-308" } ] },
+                    { nome: "SQ 04", nivel3: [ { nome: "Sem quadra", cep: "72880-140" }, { nome: "Quadra 01", cep: "72880-164" }, { nome: "Quadra 10", cep: "72880-170" }, { nome: "Quadra 11", cep: "72880-173" }, { nome: "Quadra 12", cep: "72880-176" }, { nome: "Quadra 13", cep: "72880-179" }, { nome: "Quadra 14", cep: "72880-182" }, { nome: "Quadra 15", cep: "72880-185" }, { nome: "Quadra 16", cep: "72880-188" }, { nome: "Quadra 02", cep: "72880-161" }, { nome: "Quadra 03", cep: "72880-158" }, { nome: "Quadra 04", cep: "72880-155" }, { nome: "Quadra 05", cep: "72880-152" }, { nome: "Quadra 06", cep: "72880-149" }, { nome: "Quadra 07", cep: "72880-146" }, { nome: "Quadra 08", cep: "72880-143" }, { nome: "Quadra 09", cep: "72880-167" } ] },
+                    { nome: "SQ 06", nivel3: [ { nome: "Quadra 02", cep: "72880-092" } ] },
+                    { nome: "SQ 07", nivel3: [ { nome: "Sem quadra", cep: "72880-350" }, { nome: "Quadra 01", cep: "72880-353" }, { nome: "Quadra 2A", cep: "72880-359" }, { nome: "Quadra 2B", cep: "72880-362" }, { nome: "Quadra 03", cep: "72880-356" }, { nome: "Quadra 04", cep: "72880-365" }, { nome: "Quadra 05", cep: "72880-368" }, { nome: "Quadra 06", cep: "72880-371" }, { nome: "Quadra 07", cep: "72880-374" }, { nome: "Quadra 08", cep: "72880-377" } ] },
+                    { nome: "SQ 08", nivel3: [ { nome: "Sem quadra", cep: "72880-040" }, { nome: "Quadra 01", cep: "72880-043" }, { nome: "Quadra 10", cep: "72880-070" }, { nome: "Quadra 11", cep: "72880-073" }, { nome: "Quadra 12", cep: "72880-076" }, { nome: "Quadra 13", cep: "72880-079" }, { nome: "Quadra 14", cep: "72880-082" }, { nome: "Quadra 02", cep: "72880-046" }, { nome: "Quadra 03", cep: "72880-049" }, { nome: "Quadra 04", cep: "72880-052" }, { nome: "Quadra 05", cep: "72880-055" }, { nome: "Quadra 06", cep: "72880-058" }, { nome: "Quadra 07", cep: "72880-061" }, { nome: "Quadra 08", cep: "72880-064" }, { nome: "Quadra 09", cep: "72880-067" } ] },
+                    { nome: "SQ 09", nivel3: [ { nome: "Sem quadra", cep: "72880-380" }, { nome: "Quadra 01", cep: "72880-398" }, { nome: "Quadra 02", cep: "72880-401" }, { nome: "Quadra 03", cep: "72880-395" }, { nome: "Quadra 04", cep: "72880-392" }, { nome: "Quadra 05", cep: "72880-389" }, { nome: "Quadra 06", cep: "72880-386" }, { nome: "Quadra 07", cep: "72880-383" } ] },
+                    { nome: "SQ 10", nivel3: [ { nome: "Sem quadra", cep: "72880-443" }, { nome: "Quadra 01", cep: "72880-470" }, { nome: "Quadra 10", cep: "72880-458" }, { nome: "Quadra 11", cep: "72880-449" }, { nome: "Quadra 12", cep: "72880-446" }, { nome: "Quadra 02", cep: "72880-473" }, { nome: "Quadra 03", cep: "72880-476" }, { nome: "Quadra 04", cep: "72880-479" }, { nome: "Quadra 05", cep: "72880-452" }, { nome: "Quadra 06", cep: "72880-467" }, { nome: "Quadra 07", cep: "72880-464" }, { nome: "Quadra 08", cep: "72880-461" }, { nome: "Quadra 09", cep: "72880-455" } ] },
+                    { nome: "SQ 11", nivel3: [ { nome: "Sem quadra", cep: "72880-404" }, { nome: "Quadra 01", cep: "72880-410" }, { nome: "Quadra 10", cep: "72880-437" }, { nome: "Quadra 11", cep: "72880-440" }, { nome: "Quadra 12", cep: "72880-407" }, { nome: "Quadra 02", cep: "72880-413" }, { nome: "Quadra 03", cep: "72880-416" }, { nome: "Quadra 04", cep: "72880-419" }, { nome: "Quadra 05", cep: "72880-422" }, { nome: "Quadra 06", cep: "72880-425" }, { nome: "Quadra 07", cep: "72880-428" }, { nome: "Quadra 08", cep: "72880-431" }, { nome: "Quadra 09", cep: "72880-434" } ] },
+                    { nome: "SQ 12", nivel3: [ { nome: "Sem quadra", cep: "72880-490" }, { nome: "Quadra 01", cep: "72880-492" }, { nome: "Quadra 10", cep: "72880-518" }, { nome: "Quadra 11", cep: "72880-520" }, { nome: "Quadra 02", cep: "72880-494" }, { nome: "Quadra 03", cep: "72880-496" }, { nome: "Quadra 04", cep: "72880-498" }, { nome: "Quadra 05", cep: "72880-500" }, { nome: "Quadra 06", cep: "72880-510" }, { nome: "Quadra 07", cep: "72880-512" }, { nome: "Quadra 08", cep: "72880-514" }, { nome: "Quadra 09", cep: "72880-516" } ] },
+                    { nome: "SQ 13", nivel3: [ { nome: "Sem quadra", cep: "72880-522" }, { nome: "Quadra 01", cep: "72880-526" }, { nome: "Quadra 10", cep: "72880-544" }, { nome: "Quadra 11", cep: "72880-546" }, { nome: "Quadra 12", cep: "72880-548" }, { nome: "Quadra 13", cep: "72880-524" }, { nome: "Quadra 02", cep: "72880-528" }, { nome: "Quadra 03", cep: "72880-530" }, { nome: "Quadra 04", cep: "72880-532" }, { nome: "Quadra 05", cep: "72880-534" }, { nome: "Quadra 06", cep: "72880-536" }, { nome: "Quadra 07", cep: "72880-538" }, { nome: "Quadra 08", cep: "72880-540" }, { nome: "Quadra 09", cep: "72880-542" } ] },
+                    { nome: "SQ 15", nivel3: [ { nome: "Sem quadra", cep: "72880-550" }, { nome: "Quadra 01", cep: "72880-554" }, { nome: "Quadra 10", cep: "72880-572" }, { nome: "Quadra 11", cep: "72880-574" }, { nome: "Quadra 12", cep: "72880-576" }, { nome: "Quadra 13", cep: "72880-578" }, { nome: "Quadra 14", cep: "72880-580" }, { nome: "Quadra 15", cep: "72880-582" }, { nome: "Quadra 16", cep: "72880-584" }, { nome: "Quadra 17", cep: "72880-552" }, { nome: "Quadra 02", cep: "72880-556" }, { nome: "Quadra 03", cep: "72880-558" }, { nome: "Quadra 04", cep: "72880-560" }, { nome: "Quadra 05", cep: "72880-562" }, { nome: "Quadra 06", cep: "72880-564" }, { nome: "Quadra 07", cep: "72880-566" }, { nome: "Quadra 08", cep: "72880-568" }, { nome: "Quadra 09", cep: "72880-570" } ] },
+                    { nome: "SQ 16", nivel3: [ { nome: "Sem quadra", cep: "72880-586" }, { nome: "Quadra 01", cep: "72880-588" }, { nome: "Quadra 10", cep: "72880-606" }, { nome: "Quadra 11", cep: "72880-608" }, { nome: "Quadra 12", cep: "72880-610" }, { nome: "Quadra 13", cep: "72880-612" }, { nome: "Quadra 02", cep: "72880-590" }, { nome: "Quadra 03", cep: "72880-592" }, { nome: "Quadra 04", cep: "72880-594" }, { nome: "Quadra 05", cep: "72880-596" }, { nome: "Quadra 06", cep: "72880-598" }, { nome: "Quadra 07", cep: "72880-600" }, { nome: "Quadra 08", cep: "72880-602" }, { nome: "Quadra 09", cep: "72880-604" } ] },
+                    { nome: "SQ 17", nivel3: [ { nome: "Sem quadra", cep: "72880-660" }, { nome: "Quadra 01", cep: "72880-662" }, { nome: "Quadra 10", cep: "72880-680" }, { nome: "Quadra 11", cep: "72880-682" }, { nome: "Quadra 12", cep: "72880-684" }, { nome: "Quadra 13", cep: "72880-686" }, { nome: "Quadra 02", cep: "72880-664" }, { nome: "Quadra 03", cep: "72880-666" }, { nome: "Quadra 04", cep: "72880-668" }, { nome: "Quadra 05", cep: "72880-670" }, { nome: "Quadra 06", cep: "72880-672" }, { nome: "Quadra 07", cep: "72880-674" }, { nome: "Quadra 08", cep: "72880-676" }, { nome: "Quadra 09", cep: "72880-678" } ] },
+                    { nome: "SQ 18", nivel3: [ { nome: "Sem quadra", cep: "72880-614" }, { nome: "Quadra 01", cep: "72880-616" }, { nome: "Quadra 10", cep: "72880-634" }, { nome: "Quadra 11", cep: "72880-636" }, { nome: "Quadra 12", cep: "72880-638" }, { nome: "Quadra 13", cep: "72880-640" }, { nome: "Quadra 14", cep: "72880-642" }, { nome: "Quadra 15", cep: "72880-644" }, { nome: "Quadra 16", cep: "72880-646" }, { nome: "Quadra 17", cep: "72880-648" }, { nome: "Quadra 18", cep: "72880-650" }, { nome: "Quadra 19", cep: "72880-652" }, { nome: "Quadra 02", cep: "72880-618" }, { nome: "Quadra 20", cep: "72880-654" }, { nome: "Quadra 21", cep: "72880-656" }, { nome: "Quadra 22", cep: "72880-658" }, { nome: "Quadra 03", cep: "72880-620" }, { nome: "Quadra 04", cep: "72880-622" }, { nome: "Quadra 05", cep: "72880-624" }, { nome: "Quadra 06", cep: "72880-626" }, { nome: "Quadra 07", cep: "72880-628" }, { nome: "Quadra 08", cep: "72880-630" }, { nome: "Quadra 09", cep: "72880-632" } ] },
+                    { nome: "SQ 19", nivel3: [ { nome: "Sem quadra", cep: "72880-688" }, { nome: "Quadra 01", cep: "72880-692" }, { nome: "Quadra 10", cep: "72880-710" }, { nome: "Quadra 11", cep: "72880-712" }, { nome: "Quadra 12", cep: "72880-714" }, { nome: "Quadra 13", cep: "72880-716" }, { nome: "Quadra 14", cep: "72880-718" }, { nome: "Quadra 15", cep: "72880-720" }, { nome: "Quadra 16", cep: "72880-722" }, { nome: "Quadra 17", cep: "72880-724" }, { nome: "Quadra 18", cep: "72880-726" }, { nome: "Quadra 19", cep: "72880-728" }, { nome: "Quadra 02", cep: "72880-694" }, { nome: "Quadra 20", cep: "72880-730" }, { nome: "Quadra 21", cep: "72880-690" }, { nome: "Quadra 03", cep: "72880-696" }, { nome: "Quadra 04", cep: "72880-698" }, { nome: "Quadra 05", cep: "72880-700" }, { nome: "Quadra 06", cep: "72880-702" }, { nome: "Quadra 07", cep: "72880-704" }, { nome: "Quadra 08", cep: "72880-706" }, { nome: "Quadra 09", cep: "72880-708" } ] },
+                    { nome: "SQ 21", nivel3: [ { nome: "Sem quadra", cep: "72881-078" }, { nome: "Quadra 01", cep: "72881-128" }, { nome: "Quadra 10", cep: "72881-110" }, { nome: "Quadra 11", cep: "72881-108" }, { nome: "Quadra 12", cep: "72881-106" }, { nome: "Quadra 13", cep: "72881-104" }, { nome: "Quadra 14", cep: "72881-102" }, { nome: "Quadra 15", cep: "72881-100" }, { nome: "Quadra 16", cep: "72881-098" }, { nome: "Quadra 17", cep: "72881-096" }, { nome: "Quadra 18", cep: "72881-094" }, { nome: "Quadra 19", cep: "72881-092" }, { nome: "Quadra 02", cep: "72881-126" }, { nome: "Quadra 20", cep: "72881-090" }, { nome: "Quadra 21", cep: "72881-088" }, { nome: "Quadra 22", cep: "72881-086" }, { nome: "Quadra 23", cep: "72881-084" }, { nome: "Quadra 24", cep: "72881-080" }, { nome: "Quadra 25", cep: "72881-130" }, { nome: "Quadra 26", cep: "72881-082" }, { nome: "Quadra 03", cep: "72881-124" }, { nome: "Quadra 04", cep: "72881-122" }, { nome: "Quadra 05", cep: "72881-120" }, { nome: "Quadra 06", cep: "72881-118" }, { nome: "Quadra 07", cep: "72881-116" }, { nome: "Quadra 08", cep: "72881-114" }, { nome: "Quadra 09", cep: "72881-112" } ] },
+                    { nome: "SQ 22", nivel3: [ { nome: "Sem quadra", cep: "72881-000" }, { nome: "Quadra 01", cep: "72881-020" }, { nome: "Quadra 10", cep: "72881-010" }, { nome: "Quadra 11", cep: "72881-008" }, { nome: "Quadra 12", cep: "72881-006" }, { nome: "Quadra 13", cep: "72881-004" }, { nome: "Quadra 14", cep: "72881-002" }, { nome: "Quadra 15", cep: "72881-030" }, { nome: "Quadra 16", cep: "72881-032" }, { nome: "Quadra 17", cep: "72881-034" }, { nome: "Quadra 18", cep: "72881-036" }, { nome: "Quadra 19", cep: "72881-038" }, { nome: "Quadra 02", cep: "72881-022" }, { nome: "Quadra 20", cep: "72881-040" }, { nome: "Quadra 21", cep: "72881-042" }, { nome: "Quadra 22", cep: "72881-044" }, { nome: "Quadra 23", cep: "72881-064" }, { nome: "Quadra 24", cep: "72881-062" }, { nome: "Quadra 25", cep: "72881-060" }, { nome: "Quadra 26", cep: "72881-058" }, { nome: "Quadra 27", cep: "72881-056" }, { nome: "Quadra 28", cep: "72881-054" }, { nome: "Quadra 29", cep: "72881-052" }, { nome: "Quadra 03", cep: "72881-024" }, { nome: "Quadra 30", cep: "72881-050" }, { nome: "Quadra 31", cep: "72881-048" }, { nome: "Quadra 32", cep: "72881-046" }, { nome: "Quadra 33", cep: "72881-066" }, { nome: "Quadra 34", cep: "72881-068" }, { nome: "Quadra 35", cep: "72881-070" }, { nome: "Quadra 36", cep: "72881-072" }, { nome: "Quadra 37", cep: "72881-074" }, { nome: "Quadra 38", cep: "72881-076" }, { nome: "Quadra 04", cep: "72881-026" }, { nome: "Quadra 05", cep: "72881-028" }, { nome: "Quadra 06", cep: "72881-018" }, { nome: "Quadra 07", cep: "72881-016" }, { nome: "Quadra 08", cep: "72881-014" }, { nome: "Quadra 09", cep: "72881-012" } ] }
+                ]
+            },
+            {
+                bairro: "Jardim Ouro Verde",
+                nivel2: [
+                    { nome: "Quadra 01", nivel3: [ { nome: "Conjunto A", cep: "72896-164" }, { nome: "Conjunto B", cep: "72896-162" }, { nome: "Conjunto C", cep: "72896-160" }, { nome: "Conjunto D", cep: "72896-158" }, { nome: "Conjunto E", cep: "72896-156" }, { nome: "Conjunto F", cep: "72896-154" }, { nome: "Conjunto G", cep: "72896-152" }, { nome: "Conjunto H", cep: "72896-150" } ] },
+                    { nome: "Quadra 02", nivel3: [ { nome: "Conjunto A", cep: "72896-188" }, { nome: "Conjunto B", cep: "72896-186" }, { nome: "Conjunto C", cep: "72896-184" }, { nome: "Conjunto D", cep: "72896-182" }, { nome: "Conjunto E", cep: "72896-180" }, { nome: "Conjunto F", cep: "72896-178" }, { nome: "Conjunto G", cep: "72896-176" }, { nome: "Conjunto H", cep: "72896-174" }, { nome: "Conjunto I", cep: "72896-172" }, { nome: "Conjunto J", cep: "72896-170" }, { nome: "Conjunto K", cep: "72896-168" }, { nome: "Conjunto L", cep: "72896-166" } ] },
+                    { nome: "Quadra 03", nivel3: [ { nome: "Conjunto A", cep: "72896-212" }, { nome: "Conjunto B", cep: "72896-210" }, { nome: "Conjunto C", cep: "72880-208" }, { nome: "Conjunto D", cep: "72896-206" }, { nome: "Conjunto E", cep: "72896-204" }, { nome: "Conjunto F", cep: "72896-202" }, { nome: "Conjunto G", cep: "72896-200" }, { nome: "Conjunto H", cep: "72896-198" }, { nome: "Conjunto I", cep: "72896-196" }, { nome: "Conjunto J", cep: "72896-194" }, { nome: "Conjunto K", cep: "72896-192" }, { nome: "Conjunto L", cep: "72896-190" } ] },
+                    { nome: "Quadra 04", nivel3: [ { nome: "Conjunto A", cep: "72896-234" }, { nome: "Conjunto B", cep: "72896-232" }, { nome: "Conjunto C", cep: "72896-230" }, { nome: "Conjunto D", cep: "72896-228" }, { nome: "Conjunto E", cep: "72896-226" }, { nome: "Conjunto F", cep: "72896-224" }, { nome: "Conjunto G", cep: "72896-222" }, { nome: "Conjunto H", cep: "72896-220" }, { nome: "Conjunto I", cep: "72896-218" }, { nome: "Conjunto J", cep: "72896-216" }, { nome: "Conjunto K", cep: "72896-214" } ] },
+                    { nome: "Quadra 05", nivel3: [ { nome: "Conjunto A", cep: "72896-258" }, { nome: "Conjunto B", cep: "72896-256" }, { nome: "Conjunto C", cep: "72896-254" }, { nome: "Conjunto D", cep: "72896-252" }, { nome: "Conjunto E", cep: "72896-250" }, { nome: "Conjunto F", cep: "72896-248" }, { nome: "Conjunto G", cep: "72896-246" }, { nome: "Conjunto H", cep: "72896-244" }, { nome: "Conjunto I", cep: "72896-242" }, { nome: "Conjunto J", cep: "72896-240" }, { nome: "Conjunto K", cep: "72896-238" }, { nome: "Conjunto L", cep: "72896-236" } ] }
+                ]
+            },
+            {
+                bairro: "Mansões Suleste",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72887-769" }, { nome: "Quadra 02", cep: "72887-766" },
+                    { nome: "Quadra 03", cep: "72887-763" }, { nome: "Quadra 04", cep: "72887-760" },
+                    { nome: "Quadra 05", cep: "72887-757" }, { nome: "Quadra 06", cep: "72887-754" },
+                    { nome: "Quadra 07", cep: "72887-751" }, { nome: "Quadra 08", cep: "72887-748" },
+                    { nome: "Quadra 09", cep: "72887-745" }, { nome: "Quadra 10", cep: "72887-742" },
+                    { nome: "Quadra 11", cep: "72887-739" }, { nome: "Quadra 12", cep: "72887-736" },
+                    { nome: "Quadra 13", cep: "72887-733" }, { nome: "Quadra 14", cep: "72887-730" },
+                    { nome: "Quadra 15", cep: "72887-727" }, { nome: "Quadra 16", cep: "72887-724" },
+                    { nome: "Quadra 17", cep: "72887-721" }, { nome: "Quadra 18", cep: "72887-718" },
+                    { nome: "Quadra 19", cep: "72887-715" }, { nome: "Quadra 20", cep: "72887-712" },
+                    { nome: "Quadra 21", cep: "72887-709" }, { nome: "Quadra 22", cep: "72887-706" },
+                    { nome: "Quadra 23", cep: "72887-703" }, { nome: "Quadra 24", cep: "72887-700" },
+                    { nome: "Quadra A", cep: "72880-001" }, { nome: "Quadra B", cep: "72880-004" },
+                    { nome: "Quadra C", cep: "72880-007" }, { nome: "Quadra D", cep: "72880-010" },
+                    { nome: "Quadra E", cep: "72880-013" }
+                ]
+            },
+            {
+                bairro: "Mansões Recreio Mossoró",
+                // Nível 2: Quadra. Sem Nível 3.
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72885-460" }, { nome: "Quadra 02", cep: "72885-600" },
+                    { nome: "Quadra 03", cep: "72885-480" }, { nome: "Quadra 04", cep: "72885-580" },
+                    { nome: "Quadra 05", cep: "72885-440" }, { nome: "Quadra 06", cep: "72885-500" },
+                    { nome: "Quadra 07", cep: "72885-560" }, { nome: "Quadra 08", cep: "72885-540" },
+                    { nome: "Quadra 09", cep: "72885-520" }
+                ]
+            },
+            {
+                bairro: "Alphaville Residencial I",
+                // Nível 2: Quadra. Sem Nível 3.
+                nivel2: [
+                    { nome: "Quadra A", cep: "72897-100" }, { nome: "Quadra AB", cep: "72897-154" },
+                    { nome: "Quadra AC", cep: "72897-156" }, { nome: "Quadra B", cep: "72897-102" },
+                    { nome: "Quadra C", cep: "72897-104" }, { nome: "Quadra C01", cep: "72897-158" },
+                    { nome: "Quadra C02", cep: "72897-160" }, { nome: "Quadra D", cep: "72897-106" },
+                    { nome: "Quadra E", cep: "72897-108" }, { nome: "Quadra F", cep: "72897-110" },
+                    { nome: "Quadra G", cep: "72897-112" }, { nome: "Quadra H", cep: "72897-114" },
+                    { nome: "Quadra I", cep: "72897-116" }, { nome: "Quadra J", cep: "72897-118" },
+                    { nome: "Quadra K", cep: "72897-120" }, { nome: "Quadra L", cep: "72897-122" },
+                    { nome: "Quadra M", cep: "72897-124" }, { nome: "Quadra MF01", cep: "72897-162" },
+                    { nome: "Quadra N", cep: "72897-126" }, { nome: "Quadra O", cep: "72897-128" },
+                    { nome: "Quadra P", cep: "72897-130" }, { nome: "Quadra Q", cep: "72897-132" },
+                    { nome: "Quadra R", cep: "72897-134" }, { nome: "Quadra S", cep: "72897-136" },
+                    { nome: "Quadra T", cep: "72897-138" }, { nome: "Quadra U", cep: "72897-140" },
+                    { nome: "Quadra V", cep: "72897-142" }, { nome: "Quadra W", cep: "72897-144" },
+                    { nome: "Quadra X", cep: "72897-146" }, { nome: "Quadra Y", cep: "72897-148" },
+                    { nome: "Quadra Z", cep: "72897-150" }
+                ]
+            },
+            {
+                bairro: "Alphaville Residencial 2 e 3",
+                // Nível 2: Quadra. Sem Nível 3.
+                nivel2: [
+                    { nome: "Quadra A", cep: "72897-200" }, { nome: "Quadra AA", cep: "72897-308" },
+                    { nome: "Quadra AB", cep: "72897-310" }, { nome: "Quadra AC", cep: "72897-312" },
+                    { nome: "Quadra AD", cep: "72897-314" }, { nome: "Quadra AE", cep: "72897-316" },
+                    { nome: "Quadra AF", cep: "72897-318" }, { nome: "Quadra AG", cep: "72897-320" },
+                    { nome: "Quadra AH", cep: "72897-322" }, { nome: "Quadra AI", cep: "72897-324" },
+                    { nome: "Quadra AJ", cep: "72897-326" }, { nome: "Quadra AK", cep: "72897-328" },
+                    { nome: "Quadra AL", cep: "72897-330" }, { nome: "Quadra AM", cep: "72897-332" },
+                    { nome: "Quadra AN", cep: "72897-334" }, { nome: "Quadra AO", cep: "72897-336" },
+                    { nome: "Quadra AP", cep: "72897-338" }, { nome: "Quadra AQ", cep: "72897-340" },
+                    { nome: "Quadra AR", cep: "72897-342" }, { nome: "Quadra AS", cep: "72897-344" },
+                    { nome: "Quadra AT", cep: "72897-346" }, { nome: "Quadra AU", cep: "72897-244" },
+                    { nome: "Quadra AV", cep: "72897-246" }, { nome: "Quadra AW", cep: "72897-248" },
+                    { nome: "Quadra AX", cep: "72897-250" }, { nome: "Quadra AY", cep: "72897-252" },
+                    { nome: "Quadra AZ", cep: "72897-254" }, { nome: "Quadra B", cep: "72897-202" },
+                    { nome: "Quadra BA", cep: "72897-256" }, { nome: "Quadra BB", cep: "72897-348" },
+                    { nome: "Quadra BC", cep: "72897-350" }, { nome: "Quadra C", cep: "72897-204" },
+                    { nome: "Quadra D", cep: "72897-206" }, { nome: "Quadra E", cep: "72897-208" },
+                    { nome: "Quadra F", cep: "72897-210" }, { nome: "Quadra G", cep: "72897-212" },
+                    { nome: "Quadra H", cep: "72897-214" }, { nome: "Quadra I", cep: "72897-216" },
+                    { nome: "Quadra J", cep: "72897-218" }, { nome: "Quadra K", cep: "72897-220" },
+                    { nome: "Quadra L", cep: "72897-222" }, { nome: "Quadra M", cep: "72897-224" },
+                    { nome: "Quadra MF01", cep: "72897-258" }, { nome: "Quadra MF02", cep: "72897-260" },
+                    { nome: "Quadra MF03", cep: "72897-262" }, { nome: "Quadra MF04", cep: "72897-264" },
+                    { nome: "Quadra N", cep: "72897-226" }, { nome: "Quadra O", cep: "72897-228" },
+                    { nome: "Quadra P", cep: "72897-230" }, { nome: "Quadra Q", cep: "72897-232" },
+                    { nome: "Quadra R", cep: "72897-234" }, { nome: "Quadra S", cep: "72897-236" },
+                    { nome: "Quadra T", cep: "72897-238" }, { nome: "Quadra U", cep: "72897-240" },
+                    { nome: "Quadra UM01", cep: "72897-266" }, { nome: "Quadra UM02", cep: "72897-268" },
+                    { nome: "Quadra V", cep: "72897-242" }, { nome: "Quadra W", cep: "72897-300" },
+                    { nome: "Quadra X", cep: "72897-302" }, { nome: "Quadra Y", cep: "72897-304" },
+                    { nome: "Quadra Z", cep: "72897-306" }
+                ]
+            },
+            {
+                bairro: "Área Rural",
+                cep: "72898-899"
+            },
+            {
+                bairro: "Bela Vitá",
+                // Nível 2: Quadra. Sem Nível 3.
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72890-280" }, { nome: "Quadra 02", cep: "72890-283" },
+                    { nome: "Quadra 03", cep: "72890-286" }, { nome: "Quadra 04", cep: "72890-289" },
+                    { nome: "Quadra 05", cep: "72890-292" }, { nome: "Quadra 06", cep: "72890-295" },
+                    { nome: "Quadra 07", cep: "72890-298" }, { nome: "Quadra 08", cep: "72890-301" },
+                    { nome: "Quadra 09", cep: "72890-304" }, { nome: "Quadra 10", cep: "72890-307" },
+                    { nome: "Quadra 11", cep: "72890-310" }, { nome: "Quadra 12", cep: "72890-313" },
+                    { nome: "Quadra 13", cep: "72890-316" }
+                ]
+            },
+            {
+                bairro: "Centro Comercial Remanso",
+                nivel2: [
+                    { nome: "Quadra A", cep: "72885-620" }, { nome: "Quadra B", cep: "72885-622" },
+                    { nome: "Quadra C", cep: "72885-624" }, { nome: "Quadra D", cep: "72885-626" },
+                    { nome: "Quadra E", cep: "72885-628" }, { nome: "Quadra F", cep: "72885-630" }
+                ]
+            },
+            {
+                bairro: "Colina Verde",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72883-825" }, { nome: "Quadra 02", cep: "72883-828" },
+                    { nome: "Quadra 03", cep: "72883-846" }, { nome: "Quadra 04", cep: "72883-810" },
+                    { nome: "Quadra 05", cep: "72883-822" }, { nome: "Quadra 06", cep: "72883-831" },
+                    { nome: "Quadra 07", cep: "72883-843" }, { nome: "Quadra 08", cep: "72883-819" },
+                    { nome: "Quadra 09", cep: "72883-834" }, { nome: "Quadra 10", cep: "72883-813" },
+                    { nome: "Quadra 11", cep: "72883-816" }, { nome: "Quadra 12", cep: "72883-837" },
+                    { nome: "Quadra 13", cep: "72883-840" }
+                ]
+            },
+            {
+                bairro: "Dom Bosco",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72887-780" }, { nome: "Quadra 02", cep: "72887-785" },
+                    { nome: "Quadra 03", cep: "72887-790" }, { nome: "Quadra 04", cep: "72887-795" },
+                    { nome: "Quadra 05", cep: "72887-800" }, { nome: "Quadra 06", cep: "72887-805" },
+                    { nome: "Quadra 07", cep: "72887-810" }, { nome: "Quadra 08", cep: "72887-815" },
+                    { nome: "Quadra 09", cep: "72887-820" }, { nome: "Quadra 10", cep: "72887-825" },
+                    { nome: "Quadra 11", cep: "72887-830" }, { nome: "Quadra 12", cep: "72887-835" },
+                    { nome: "Quadra 13", cep: "72887-840" }, { nome: "Quadra 14", cep: "72887-850" },
+                    { nome: "Quadra 15", cep: "72887-845" }, { nome: "Quadra 16", cep: "72887-855" },
+                    { nome: "Quadra 17", cep: "72887-860" }, { nome: "Quadra 18", cep: "72887-865" },
+                    { nome: "Quadra 19", cep: "72887-870" }, { nome: "Quadra 20", cep: "72887-875" },
+                    { nome: "Quadra 21", cep: "72887-880" }, { nome: "Quadra 22", cep: "72887-885" },
+                    { nome: "Quadra 23", cep: "72887-890" }, { nome: "Quadra 24", cep: "72887-895" }
+                ]
+            },
+            {
+                bairro: "Jardim das Oliveiras",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72896-134" }, { nome: "Quadra 02", cep: "72896-132" },
+                    { nome: "Quadra 03", cep: "72896-130" }, { nome: "Quadra 04", cep: "72896-128" },
+                    { nome: "Quadra 05", cep: "72896-126" }, { nome: "Quadra 06", cep: "72896-124" },
+                    { nome: "Quadra 07", cep: "72896-122" }, { nome: "Quadra 08", cep: "72896-120" },
+                    { nome: "Quadra 09", cep: "72896-086" }, { nome: "Quadra 10", cep: "72896-084" },
+                    { nome: "Quadra 11", cep: "72896-082" }, { nome: "Quadra 12", cep: "72896-080" },
+                    { nome: "Quadra 13", cep: "72896-078" }, { nome: "Quadra 14", cep: "72896-076" },
+                    { nome: "Quadra 15", cep: "72896-074" }, { nome: "Quadra 16", cep: "72896-072" },
+                    { nome: "Quadra 17", cep: "72896-070" }, { nome: "Quadra 18", cep: "72896-068" },
+                    { nome: "Quadra 19", cep: "72896-058" }, { nome: "Quadra 20", cep: "72896-056" },
+                    { nome: "Quadra 21", cep: "72896-054" }, { nome: "Quadra 22", cep: "72896-052" },
+                    { nome: "Quadra 23", cep: "72896-050" }, { nome: "Quadra 84", cep: "72896-092" },
+                    { nome: "Quadra 85", cep: "72896-094" }, { nome: "Quadra 86", cep: "72896-096" },
+                    { nome: "Quadra 87", cep: "72896-098" }, { nome: "Quadra 88", cep: "72896-100" },
+                    { nome: "Quadra 89", cep: "72896-090" }, { nome: "Quadra 90", cep: "72896-064" },
+                    { nome: "Quadra 91", cep: "72896-062" }, { nome: "Quadra 92", cep: "72896-060" },
+                    { nome: "Quadra 93", cep: "72896-066" }, { nome: "Quadra 94", cep: "72896-088" },
+                    { nome: "Quadra 95", cep: "72896-118" }, { nome: "Quadra 96", cep: "72896-136" },
+                    { nome: "Quadra 97", cep: "72896-116" }, { nome: "Quadra 98", cep: "72896-114" },
+                    { nome: "Quadra 99", cep: "72896-112" }, { nome: "Quadra 100", cep: "72896-110" },
+                    { nome: "Quadra 101", cep: "72896-108" }, { nome: "Quadra 102", cep: "72896-106" },
+                    { nome: "Quadra 103", cep: "72896-104" }, { nome: "Quadra 104", cep: "72896-102" }
+                ]
+            },
+            {
+                bairro: "Jardim Edite",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72895-000" }, { nome: "Quadra 02", cep: "72895-002" },
+                    { nome: "Quadra 03", cep: "72895-004" }, { nome: "Quadra 04", cep: "72895-006" },
+                    { nome: "Quadra 05", cep: "72895-008" }, { nome: "Quadra 06", cep: "72895-010" },
+                    { nome: "Quadra 07", cep: "72895-012" }, { nome: "Quadra 08", cep: "72895-014" },
+                    { nome: "Quadra 09", cep: "72895-016" }, { nome: "Quadra 10", cep: "72895-018" },
+                    { nome: "Quadra 11", cep: "72895-020" }, { nome: "Quadra 12", cep: "72895-022" },
+                    { nome: "Quadra 13", cep: "72895-024" }, { nome: "Quadra 14", cep: "72895-026" },
+                    { nome: "Quadra 15", cep: "72895-028" }, { nome: "Quadra 16", cep: "72895-030" },
+                    { nome: "Quadra 17", cep: "72895-032" }, { nome: "Quadra 18", cep: "72895-034" },
+                    { nome: "Quadra 19", cep: "72895-036" }, { nome: "Quadra 20", cep: "72895-038" },
+                    { nome: "Quadra 21", cep: "72895-040" }, { nome: "Quadra 22", cep: "72895-042" },
+                    { nome: "Quadra 23", cep: "72895-044" }, { nome: "Quadra 24", cep: "72895-046" },
+                    { nome: "Quadra 25", cep: "72895-048" }, { nome: "Quadra 26", cep: "72895-050" },
+                    { nome: "Quadra 27", cep: "72895-052" }, { nome: "Quadra 28", cep: "72895-054" },
+                    { nome: "Quadra 29", cep: "72895-056" }, { nome: "Quadra 30", cep: "72895-058" },
+                    { nome: "Quadra 31", cep: "72895-060" }, { nome: "Quadra 32", cep: "72895-062" },
+                    { nome: "Quadra 33", cep: "72895-064" }, { nome: "Quadra 34", cep: "72895-066" },
+                    { nome: "Quadra 35", cep: "72895-068" }, { nome: "Quadra 36", cep: "72895-070" },
+                    { nome: "Quadra 37", cep: "72895-072" }, { nome: "Quadra 38", cep: "72895-074" },
+                    { nome: "Quadra 39", cep: "72895-076" }, { nome: "Quadra 40", cep: "72895-078" },
+                    { nome: "Quadra 41", cep: "72895-080" }, { nome: "Quadra 42", cep: "72895-082" },
+                    { nome: "Quadra 43", cep: "72895-084" }, { nome: "Quadra 44", cep: "72895-086" },
+                    { nome: "Quadra 45", cep: "72895-088" }, { nome: "Quadra 46", cep: "72895-090" },
+                    { nome: "Quadra 47", cep: "72895-092" }, { nome: "Quadra 48", cep: "72895-094" },
+                    { nome: "Quadra 49", cep: "72895-096" }, { nome: "Quadra 50", cep: "72895-098" },
+                    { nome: "Quadra 51", cep: "72895-100" }, { nome: "Quadra 52", cep: "72895-102" },
+                    { nome: "Quadra 53", cep: "72895-104" }, { nome: "Quadra 54", cep: "72895-106" },
+                    { nome: "Quadra 55", cep: "72895-108" }, { nome: "Quadra 56", cep: "72895-110" },
+                    { nome: "Quadra 57", cep: "72895-112" }, { nome: "Quadra 58", cep: "72895-114" },
+                    { nome: "Quadra 59", cep: "72895-116" }, { nome: "Quadra 60", cep: "72895-118" },
+                    { nome: "Quadra 61", cep: "72895-120" }, { nome: "Quadra 62", cep: "72895-122" },
+                    { nome: "Quadra 63", cep: "72895-124" }, { nome: "Quadra 64", cep: "72895-126" },
+                    { nome: "Quadra 65", cep: "72895-128" }, { nome: "Quadra 66", cep: "72895-130" },
+                    { nome: "Quadra 67", cep: "72895-132" }, { nome: "Quadra 68", cep: "72895-134" },
+                    { nome: "Quadra 69", cep: "72895-136" }, { nome: "Quadra 70", cep: "72895-138" },
+                    { nome: "Quadra 71", cep: "72895-140" }, { nome: "Quadra 72", cep: "72895-142" },
+                    { nome: "Quadra 73", cep: "72895-144" }, { nome: "Quadra 74", cep: "72895-146" },
+                    { nome: "Quadra 75", cep: "72895-148" }, { nome: "Quadra 76", cep: "72895-150" },
+                    { nome: "Quadra 77", cep: "72895-152" }, { nome: "Quadra 78", cep: "72895-154" },
+                    { nome: "Quadra 79", cep: "72895-156" }, { nome: "Quadra 80", cep: "72895-158" },
+                    { nome: "Quadra 81", cep: "72895-160" }, { nome: "Quadra 82", cep: "72895-162" },
+                    { nome: "Quadra 83", cep: "72895-164" }, { nome: "Quadra 84", cep: "72895-166" },
+                    { nome: "Quadra 85", cep: "72895-168" }, { nome: "Quadra 86", cep: "72895-170" },
+                    { nome: "Quadra 87", cep: "72895-172" }, { nome: "Quadra 88", cep: "72895-174" },
+                    { nome: "Quadra 89", cep: "72895-176" }, { nome: "Quadra 90", cep: "72895-178" },
+                    { nome: "Quadra 91", cep: "72895-180" }, { nome: "Quadra 92", cep: "72895-182" },
+                    { nome: "Quadra 93", cep: "72895-184" }, { nome: "Quadra 94", cep: "72895-186" },
+                    { nome: "Quadra 95", cep: "72895-188" }, { nome: "Quadra 96", cep: "72895-190" },
+                    { nome: "Quadra 97", cep: "72895-192" }, { nome: "Quadra 98", cep: "72895-194" },
+                    { nome: "Quadra 99", cep: "72895-196" }, { nome: "Quadra 100", cep: "72895-198" },
+                    { nome: "Quadra 101", cep: "72895-200" }, { nome: "Quadra 102", cep: "72895-202" },
+                    { nome: "Quadra 103", cep: "72895-204" }, { nome: "Quadra 104", cep: "72895-206" },
+                    { nome: "Quadra 105", cep: "72895-208" }, { nome: "Quadra 106", cep: "72895-210" },
+                    { nome: "Quadra 107", cep: "72895-212" }, { nome: "Quadra 108", cep: "72895-214" }
+                ]
+            },
+            {
+                bairro: "Jardim Satélite",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72896-392" }, { nome: "Quadra 02", cep: "72896-390" },
+                    { nome: "Quadra 03", cep: "72896-388" }, { nome: "Quadra 04", cep: "72896-386" },
+                    { nome: "Quadra 05", cep: "72896-384" }, { nome: "Quadra 06", cep: "72896-382" },
+                    { nome: "Quadra 07", cep: "72896-380" }, { nome: "Quadra 08", cep: "72896-378" },
+                    { nome: "Quadra 09", cep: "72896-376" }, { nome: "Quadra 10", cep: "72896-374" },
+                    { nome: "Quadra 11", cep: "72896-372" }, { nome: "Quadra 12", cep: "72896-370" },
+                    { nome: "Quadra 13", cep: "72896-368" }, { nome: "Quadra 14", cep: "72896-366" },
+                    { nome: "Quadra 15", cep: "72896-364" }, { nome: "Quadra 16", cep: "72896-362" },
+                    { nome: "Quadra 17", cep: "72896-360" }, { nome: "Quadra 18", cep: "72896-358" },
+                    { nome: "Quadra 19", cep: "72896-356" }, { nome: "Quadra 20", cep: "72896-354" },
+                    { nome: "Quadra 21", cep: "72896-352" }, { nome: "Quadra 22", cep: "72896-350" },
+                    { nome: "Quadra 23", cep: "72896-348" }, { nome: "Quadra 24", cep: "72896-346" },
+                    { nome: "Quadra 25", cep: "72896-344" }, { nome: "Quadra 26", cep: "72896-342" },
+                    { nome: "Quadra 27", cep: "72896-340" }, { nome: "Quadra 28", cep: "72896-338" },
+                    { nome: "Quadra 29", cep: "72896-336" }, { nome: "Quadra 30", cep: "72896-334" },
+                    { nome: "Quadra 31", cep: "72896-332" }, { nome: "Quadra 32", cep: "72896-330" },
+                    { nome: "Quadra 33", cep: "72896-328" }, { nome: "Quadra 34", cep: "72896-326" },
+                    { nome: "Quadra 35", cep: "72896-324" }, { nome: "Quadra 36", cep: "72896-322" },
+                    { nome: "Quadra 37", cep: "72896-320" }, { nome: "Quadra 38", cep: "72896-318" },
+                    { nome: "Quadra 39", cep: "72896-316" }, { nome: "Quadra 40", cep: "72896-314" },
+                    { nome: "Quadra 41", cep: "72896-312" }, { nome: "Quadra 42", cep: "72896-310" },
+                    { nome: "Quadra 43", cep: "72896-308" }, { nome: "Quadra 44", cep: "72896-306" },
+                    { nome: "Quadra 45", cep: "72896-304" }, { nome: "Quadra 46", cep: "72896-302" },
+                    { nome: "Quadra 47", cep: "72896-300" }
+                ]
+            },
+            {
+                bairro: "Mansões Recreio Estrela D'Alva I",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72885-866" }, { nome: "Quadra 02", cep: "72885-862" },
+                    { nome: "Quadra 03", cep: "72885-894" }, { nome: "Quadra 04", cep: "72885-868" },
+                    { nome: "Quadra 05", cep: "72885-860" }, { nome: "Quadra 06", cep: "72885-870" },
+                    { nome: "Quadra 07", cep: "72885-858" }, { nome: "Quadra 08", cep: "72885-864" },
+                    { nome: "Quadra 09", cep: "72885-896" }, { nome: "Quadra 10", cep: "72885-892" },
+                    { nome: "Quadra 11", cep: "72885-872" }, { nome: "Quadra 12", cep: "72885-856" },
+                    { nome: "Quadra 13", cep: "72885-874" }, { nome: "Quadra 14", cep: "72885-854" },
+                    { nome: "Quadra 15", cep: "72885-786" }, { nome: "Quadra 16", cep: "72885-784" },
+                    { nome: "Quadra 17", cep: "72885-810" }, { nome: "Quadra 18", cep: "72885-770" },
+                    { nome: "Quadra 19", cep: "72885-800" }, { nome: "Quadra 20", cep: "72885-798" },
+                    { nome: "Quadra 21", cep: "72885-788" }, { nome: "Quadra 22", cep: "72885-782" },
+                    { nome: "Quadra 23", cep: "72885-772" }, { nome: "Quadra 24", cep: "72885-876" },
+                    { nome: "Quadra 25", cep: "72885-852" }, { nome: "Quadra 26", cep: "72885-832" },
+                    { nome: "Quadra 27", cep: "72885-830" }, { nome: "Quadra 28", cep: "72885-808" },
+                    { nome: "Quadra 29", cep: "72885-802" }, { nome: "Quadra 30", cep: "72885-796" },
+                    { nome: "Quadra 31", cep: "72885-790" }, { nome: "Quadra 32", cep: "72885-780" },
+                    { nome: "Quadra 33", cep: "72885-774" }, { nome: "Quadra 34", cep: "72885-878" },
+                    { nome: "Quadra 35", cep: "72885-850" }, { nome: "Quadra 36", cep: "72885-834" },
+                    { nome: "Quadra 37", cep: "72885-828" }, { nome: "Quadra 38", cep: "72885-806" },
+                    { nome: "Quadra 39", cep: "72885-804" }, { nome: "Quadra 40", cep: "72885-794" },
+                    { nome: "Quadra 41", cep: "72885-792" }, { nome: "Quadra 42", cep: "72885-778" },
+                    { nome: "Quadra 43", cep: "72885-776" }, { nome: "Quadra 44", cep: "72885-880" },
+                    { nome: "Quadra 45", cep: "72885-848" }, { nome: "Quadra 46", cep: "72885-836" },
+                    { nome: "Quadra 47", cep: "72885-826" }, { nome: "Quadra 48", cep: "72890-890" },
+                    { nome: "Quadra 49", cep: "72885-882" }, { nome: "Quadra 50", cep: "72885-846" },
+                    { nome: "Quadra 51", cep: "72885-838" }, { nome: "Quadra 52", cep: "72885-824" },
+                    { nome: "Quadra 53", cep: "72885-884" }, { nome: "Quadra 54", cep: "72885-844" },
+                    { nome: "Quadra 55", cep: "72885-840" }, { nome: "Quadra 56", cep: "72885-822" },
+                    { nome: "Quadra 57", cep: "72885-886" }, { nome: "Quadra 58", cep: "72885-842" },
+                    { nome: "Quadra 59", cep: "72885-820" }, { nome: "Quadra 60", cep: "72885-812" },
+                    { nome: "Quadra 61", cep: "72885-888" }, { nome: "Quadra 62", cep: "72885-816" },
+                    { nome: "Quadra 63", cep: "72885-818" }, { nome: "Quadra 64", cep: "72885-814" }
+                ]
+            },
+            {
+                bairro: "Mansões Recreio Estrela D'Alva III",
+                nivel2: [
+                    { nome: "Quadra 106", cep: "72887-387" }, { nome: "Quadra 107", cep: "72887-384" },
+                    { nome: "Quadra 108", cep: "72887-381" }, { nome: "Quadra 109", cep: "72887-378" },
+                    { nome: "Quadra 110", cep: "72887-375" }, { nome: "Quadra 111", cep: "72887-372" },
+                    { nome: "Quadra 112", cep: "72887-369" }, { nome: "Quadra 113", cep: "72887-366" },
+                    { nome: "Quadra 114", cep: "72887-363" }, { nome: "Quadra 115", cep: "72887-360" },
+                    { nome: "Quadra 116", cep: "72887-357" }, { nome: "Quadra 117", cep: "72887-348" },
+                    { nome: "Quadra 118", cep: "72887-351" }, { nome: "Quadra 119", cep: "72887-354" },
+                    { nome: "Quadra 120", cep: "72887-345" }, { nome: "Quadra 121", cep: "72887-342" },
+                    { nome: "Quadra 122", cep: "72887-339" }, { nome: "Quadra 123", cep: "72887-336" },
+                    { nome: "Quadra 124", cep: "72887-333" }, { nome: "Quadra 125", cep: "72887-330" }
+                ]
+            },
+            {
+                bairro: "Morada das Garças",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72883-805" }, { nome: "Quadra 02", cep: "72883-802" },
+                    { nome: "Quadra 03", cep: "72883-799" }, { nome: "Quadra 04", cep: "72883-796" },
+                    { nome: "Quadra 05", cep: "72883-793" }, { nome: "Quadra 06", cep: "72883-790" },
+                    { nome: "Quadra 07", cep: "72883-787" }, { nome: "Quadra 08", cep: "72883-784" },
+                    { nome: "Quadra 09", cep: "72883-781" }, { nome: "Quadra 10", cep: "72883-778" },
+                    { nome: "Quadra 11", cep: "72883-775" }, { nome: "Quadra 12", cep: "72883-772" },
+                    { nome: "Quadra 13", cep: "72883-769" }, { nome: "Quadra 14", cep: "72883-766" },
+                    { nome: "Quadra 15", cep: "72883-763" }, { nome: "Quadra 16", cep: "72883-760" },
+                    { nome: "Quadra 17", cep: "72883-757" }, { nome: "Quadra 18", cep: "72883-754" },
+                    { nome: "Quadra 19", cep: "72883-751" }, { nome: "Quadra 20", cep: "72883-748" },
+                    { nome: "Quadra 21", cep: "72883-745" }, { nome: "Quadra 22", cep: "72883-703" },
+                    { nome: "Quadra 23", cep: "72883-742" }, { nome: "Quadra 24", cep: "72883-739" },
+                    { nome: "Quadra 25", cep: "72883-736" }, { nome: "Quadra 26", cep: "72883-733" },
+                    { nome: "Quadra 27", cep: "72883-730" }, { nome: "Quadra 28", cep: "72883-727" },
+                    { nome: "Quadra 29", cep: "72883-724" }, { nome: "Quadra 30", cep: "72883-721" },
+                    { nome: "Quadra 31", cep: "72883-718" }, { nome: "Quadra 32", cep: "72883-715" },
+                    { nome: "Quadra 33", cep: "72883-712" }, { nome: "Quadra 34", cep: "72883-709" },
+                    { nome: "Quadra 35", cep: "72883-706" }, { nome: "Quadra 36", cep: "72883-688" },
+                    { nome: "Quadra 37", cep: "72883-685" }, { nome: "Quadra 38", cep: "72883-682" },
+                    { nome: "Quadra 39", cep: "72883-679" }, { nome: "Quadra 40", cep: "72883-667" },
+                    { nome: "Quadra 41", cep: "72883-664" }, { nome: "Quadra 42", cep: "72883-661" },
+                    { nome: "Quadra 43", cep: "72883-658" }, { nome: "Quadra 44", cep: "72883-655" },
+                    { nome: "Quadra 45", cep: "72883-652" }, { nome: "Quadra 46", cep: "72883-649" },
+                    { nome: "Quadra 47", cep: "72883-646" }, { nome: "Quadra 48", cep: "72883-643" },
+                    { nome: "Quadra 49", cep: "72883-640" }, { nome: "Quadra 50", cep: "72883-637" },
+                    { nome: "Quadra 51", cep: "72883-634" }, { nome: "Quadra 52", cep: "72883-631" },
+                    { nome: "Quadra 53", cep: "72883-628" }, { nome: "Quadra 54", cep: "72883-625" },
+                    { nome: "Quadra 55", cep: "72883-622" }, { nome: "Quadra 56", cep: "72883-619" },
+                    { nome: "Quadra 57", cep: "72883-616" }, { nome: "Quadra 58", cep: "72883-613" },
+                    { nome: "Quadra 59", cep: "72883-604" }, { nome: "Quadra 60", cep: "72883-601" },
+                    { nome: "Quadra 61", cep: "72883-598" }, { nome: "Quadra 62", cep: "72883-595" },
+                    { nome: "Quadra 63", cep: "72883-592" }, { nome: "Quadra 64", cep: "72883-589" },
+                    { nome: "Quadra 65", cep: "72883-574" }, { nome: "Quadra 66", cep: "72883-571" },
+                    { nome: "Quadra 67", cep: "72883-568" }, { nome: "Quadra 68", cep: "72883-565" },
+                    { nome: "Quadra 69", cep: "72883-562" }, { nome: "Quadra 70", cep: "72883-559" },
+                    { nome: "Quadra 71", cep: "72883-556" }, { nome: "Quadra 72", cep: "72883-553" },
+                    { nome: "Quadra 73", cep: "72883-550" }, { nome: "Quadra 74", cep: "72883-541" },
+                    { nome: "Quadra 75", cep: "72883-538" }, { nome: "Quadra 76", cep: "72883-535" },
+                    { nome: "Quadra 77", cep: "72883-532" }, { nome: "Quadra 78", cep: "72883-529" },
+                    { nome: "Quadra 79", cep: "72883-526" }, { nome: "Quadra 80", cep: "72883-523" },
+                    { nome: "Quadra 81", cep: "72883-520" }, { nome: "Quadra 82", cep: "72883-517" },
+                    { nome: "Quadra 83", cep: "72883-514" }, { nome: "Quadra 84", cep: "72883-511" },
+                    { nome: "Quadra 85", cep: "72883-508" }, { nome: "Quadra 86", cep: "72883-505" },
+                    { nome: "Quadra 87", cep: "72883-502" }, { nome: "Quadra 88", cep: "72883-499" },
+                    { nome: "Quadra 89", cep: "72883-496" }, { nome: "Quadra 90", cep: "72883-493" },
+                    { nome: "Quadra 91", cep: "72893-490" }, { nome: "Quadra 92", cep: "72893-487" },
+                    { nome: "Quadra 93", cep: "72893-484" }, { nome: "Quadra 94", cep: "72893-481" },
+                    { nome: "Quadra 95", cep: "72893-478" }, { nome: "Quadra 96", cep: "72893-475" },
+                    { nome: "Quadra 97", cep: "72893-472" }, { nome: "Quadra 98", cep: "72893-466" },
+                    { nome: "Quadra 99", cep: "72893-463" }, { nome: "Quadra 100", cep: "72883-460" },
+                    { nome: "Quadra 101", cep: "72883-457" }, { nome: "Quadra 102", cep: "72883-451" },
+                    { nome: "Quadra 103", cep: "72883-448" }, { nome: "Quadra 104", cep: "72883-445" },
+                    { nome: "Quadra 105", cep: "72883-442" }, { nome: "Quadra 106", cep: "72883-439" },
+                    { nome: "Quadra 107", cep: "72883-436" }, { nome: "Quadra 108", cep: "72883-433" },
+                    { nome: "Quadra 109", cep: "72883-430" }, { nome: "Quadra 110", cep: "72883-427" },
+                    { nome: "Quadra 111", cep: "72883-424" }, { nome: "Quadra 112", cep: "72883-421" },
+                    { nome: "Quadra 113", cep: "72883-418" }, { nome: "Quadra 114", cep: "72883-415" },
+                    { nome: "Quadra 115", cep: "72883-412" }, { nome: "Quadra 116", cep: "72883-409" },
+                    { nome: "Quadra 117", cep: "72883-406" }, { nome: "Quadra 118", cep: "72883-400" },
+                    { nome: "Quadra 119", cep: "72883-397" }, { nome: "Quadra 120", cep: "72883-394" },
+                    { nome: "Quadra 121", cep: "72883-388" }, { nome: "Quadra 122", cep: "72883-385" },
+                    { nome: "Quadra 123", cep: "72883-382" }, { nome: "Quadra 124", cep: "72883-379" },
+                    { nome: "Quadra 125", cep: "72883-376" }, { nome: "Quadra 126", cep: "72883-373" },
+                    { nome: "Quadra 127", cep: "72883-370" }, { nome: "Quadra 128", cep: "72883-367" },
+                    { nome: "Quadra 129", cep: "72883-361" }, { nome: "Quadra 130", cep: "72883-364" },
+                    { nome: "Quadra 131", cep: "72883-349" }, { nome: "Quadra 132", cep: "72883-352" },
+                    { nome: "Quadra 133", cep: "72883-355" }, { nome: "Quadra 134", cep: "72883-358" },
+                    { nome: "Quadra 135", cep: "72883-337" }, { nome: "Quadra 136", cep: "72883-340" },
+                    { nome: "Quadra 137", cep: "72883-343" }, { nome: "Quadra 138", cep: "72883-346" },
+                    { nome: "Quadra 139", cep: "72883-325" }, { nome: "Quadra 140", cep: "72883-328" },
+                    { nome: "Quadra 141", cep: "72883-331" }, { nome: "Quadra 142", cep: "72883-334" },
+                    { nome: "Quadra 143", cep: "72883-313" }, { nome: "Quadra 144", cep: "72883-316" },
+                    { nome: "Quadra 145", cep: "72883-319" }, { nome: "Quadra 146", cep: "72883-322" },
+                    { nome: "Quadra 147", cep: "72883-295" }, { nome: "Quadra 148", cep: "72883-292" },
+                    { nome: "Quadra 149", cep: "72883-289" }, { nome: "Quadra 150", cep: "72883-283" },
+                    { nome: "Quadra 151", cep: "72883-280" }, { nome: "Quadra 152", cep: "72883-286" },
+                    { nome: "Quadra 153", cep: "72883-298" }, { nome: "Quadra 154", cep: "72883-301" },
+                    { nome: "Quadra 155", cep: "72883-304" }, { nome: "Quadra 156", cep: "72883-307" },
+                    { nome: "Quadra 157", cep: "72883-310" }, { nome: "Quadra C 1", cep: "72883-691" },
+                    { nome: "Quadra C 2", cep: "72883-694" }, { nome: "Quadra C 3", cep: "72883-697" },
+                    { nome: "Quadra C 4", cep: "72883-700" }, { nome: "Quadra C 5", cep: "72883-577" },
+                    { nome: "Quadra C 6", cep: "72883-580" }, { nome: "Quadra C 7", cep: "72883-583" },
+                    { nome: "Quadra C 8", cep: "72883-586" }, { nome: "Quadra C 9", cep: "72883-610" },
+                    { nome: "Quadra C 10", cep: "72883-607" }, { nome: "Quadra C 11", cep: "72883-547" },
+                    { nome: "Quadra C 12", cep: "72883-544" }, { nome: "Quadra C 13", cep: "72883-469" },
+                    { nome: "Quadra C 14", cep: "72883-454" }, { nome: "Quadra C 15", cep: "72883-403" },
+                    { nome: "Quadra C 16", cep: "72883-391" }
+                ]
+            },
+            {
+                bairro: "Ocidental Park",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72883-000" }, { nome: "Quadra 02", cep: "72883-004" },
+                    { nome: "Quadra 03", cep: "72883-008" }, { nome: "Quadra 04", cep: "72883-012" },
+                    { nome: "Quadra 05", cep: "72883-016" }, { nome: "Quadra 06", cep: "72883-140" },
+                    { nome: "Quadra 07", cep: "72883-020" }, { nome: "Quadra 08", cep: "72883-136" },
+                    { nome: "Quadra 09", cep: "72883-024" }, { nome: "Quadra 10", cep: "72883-132" },
+                    { nome: "Quadra 11", cep: "72883-028" }, { nome: "Quadra 12", cep: "72883-128" },
+                    { nome: "Quadra 13", cep: "72883-032" }, { nome: "Quadra 14", cep: "72883-124" },
+                    { nome: "Quadra 15", cep: "72883-036" }, { nome: "Quadra 16", cep: "72883-040" },
+                    { nome: "Quadra 17", cep: "72883-044" }, { nome: "Quadra 18", cep: "72883-120" },
+                    { nome: "Quadra 19", cep: "72883-056" }, { nome: "Quadra 20", cep: "72883-052" },
+                    { nome: "Quadra 21", cep: "72883-048" }, { nome: "Quadra 22", cep: "72883-116" },
+                    { nome: "Quadra 23", cep: "72883-060" }, { nome: "Quadra 24", cep: "72883-064" },
+                    { nome: "Quadra 25", cep: "72883-068" }, { nome: "Quadra 26", cep: "72883-112" },
+                    { nome: "Quadra 27", cep: "72883-080" }, { nome: "Quadra 28", cep: "72883-076" },
+                    { nome: "Quadra 29", cep: "72883-072" }, { nome: "Quadra 30", cep: "72883-108" },
+                    { nome: "Quadra 31", cep: "72883-084" }, { nome: "Quadra 32", cep: "72883-088" },
+                    { nome: "Quadra 33", cep: "72883-092" }, { nome: "Quadra 34", cep: "72883-104" },
+                    { nome: "Quadra 35", cep: "72883-100" }, { nome: "Quadra 36", cep: "72883-096" }
+                ]
+            },
+            {
+                bairro: "Parque Araguari",
+                nivel2: [
+                    { nome: "Quadra 03", cep: "72885-400" }, { nome: "Quadra 04", cep: "72885-398" },
+                    { nome: "Quadra 05", cep: "72885-396" }, { nome: "Quadra 06", cep: "72885-394" },
+                    { nome: "Quadra 07", cep: "72885-392" }, { nome: "Quadra 08", cep: "72885-390" },
+                    { nome: "Quadra 09", cep: "72885-388" }, { nome: "Quadra 10", cep: "72885-386" },
+                    { nome: "Quadra 11", cep: "72885-380" }, { nome: "Quadra 12", cep: "72885-384" },
+                    { nome: "Quadra 13", cep: "72885-382" }, { nome: "Quadra 14", cep: "72885-378" },
+                    { nome: "Quadra 15", cep: "72885-376" }, { nome: "Quadra 16", cep: "72885-374" },
+                    { nome: "Quadra 17", cep: "72885-372" }, { nome: "Quadra 18", cep: "72885-370" },
+                    { nome: "Quadra 19", cep: "72885-402" }, { nome: "Quadra 21", cep: "72885-304" },
+                    { nome: "Quadra 23", cep: "72885-302" }, { nome: "Quadra 23A", cep: "72885-300" },
+                    { nome: "Quadra 23B", cep: "72885-298" }, { nome: "Quadra 24", cep: "72885-296" },
+                    { nome: "Quadra 25", cep: "72885-294" }, { nome: "Quadra 26", cep: "72885-292" },
+                    { nome: "Quadra 27", cep: "72885-290" }, { nome: "Quadra 28", cep: "72885-288" },
+                    { nome: "Quadra 29A", cep: "72885-286" }, { nome: "Quadra 29B", cep: "72885-284" },
+                    { nome: "Quadra 30", cep: "72885-282" }, { nome: "Quadra 31", cep: "72885-280" },
+                    { nome: "Quadra 32", cep: "72885-278" }, { nome: "Quadra 33", cep: "72885-276" },
+                    { nome: "Quadra 34", cep: "72885-274" }, { nome: "Quadra 35", cep: "72885-272" },
+                    { nome: "Quadra 36", cep: "72885-270" }, { nome: "Quadra 37", cep: "72885-268" },
+                    { nome: "Quadra 38", cep: "72885-266" }, { nome: "Quadra 39", cep: "72885-264" },
+                    { nome: "Quadra 40", cep: "72885-230" }, { nome: "Quadra 41", cep: "72885-232" },
+                    { nome: "Quadra 42", cep: "72885-234" }, { nome: "Quadra 43", cep: "72885-236" },
+                    { nome: "Quadra 44", cep: "72885-238" }, { nome: "Quadra 45", cep: "72885-240" },
+                    { nome: "Quadra 46A", cep: "72885-242" }, { nome: "Quadra 46B", cep: "72885-244" },
+                    { nome: "Quadra 47", cep: "72885-246" }, { nome: "Quadra 48", cep: "72885-248" },
+                    { nome: "Quadra 49", cep: "72885-250" }, { nome: "Quadra 50", cep: "72885-252" },
+                    { nome: "Quadra 51", cep: "72885-254" }, { nome: "Quadra 52", cep: "72885-256" },
+                    { nome: "Quadra 53", cep: "72885-258" }, { nome: "Quadra 54", cep: "72885-260" },
+                    { nome: "Quadra 55", cep: "72885-262" }
+                ]
+            },
+            {
+                bairro: "Parque das Américas",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72896-600" }, { nome: "Quadra 02", cep: "72896-602" },
+                    { nome: "Quadra 03", cep: "72896-604" }, { nome: "Quadra 04", cep: "72896-606" },
+                    { nome: "Quadra 05", cep: "72896-608" }, { nome: "Quadra 06", cep: "72896-610" },
+                    { nome: "Quadra 07", cep: "72896-612" }, { nome: "Quadra 08", cep: "72896-614" },
+                    { nome: "Quadra 09", cep: "72896-616" }, { nome: "Quadra 10", cep: "72896-618" },
+                    { nome: "Quadra 11", cep: "72896-620" }, { nome: "Quadra 12", cep: "72896-622" },
+                    { nome: "Quadra 13", cep: "72896-624" }, { nome: "Quadra 14", cep: "72896-626" },
+                    { nome: "Quadra 15", cep: "72896-628" }, { nome: "Quadra 16", cep: "72896-630" },
+                    { nome: "Quadra 17", cep: "72896-632" }, { nome: "Quadra 18", cep: "72896-634" },
+                    { nome: "Quadra 19", cep: "72896-636" }, { nome: "Quadra 20", cep: "72896-638" },
+                    { nome: "Quadra 21", cep: "72896-640" }, { nome: "Quadra 22", cep: "72896-642" },
+                    { nome: "Quadra 23", cep: "72896-644" }, { nome: "Quadra 24", cep: "72896-646" },
+                    { nome: "Quadra 25", cep: "72896-648" }, { nome: "Quadra 26", cep: "72896-650" },
+                    { nome: "Quadra 27", cep: "72896-652" }, { nome: "Quadra 28", cep: "72896-654" },
+                    { nome: "Quadra 29", cep: "72896-656" }, { nome: "Quadra 30", cep: "72896-658" },
+                    { nome: "Quadra 31", cep: "72896-660" }, { nome: "Quadra 32", cep: "72896-662" },
+                    { nome: "Quadra 33", cep: "72896-664" }, { nome: "Quadra 34", cep: "72896-666" },
+                    { nome: "Quadra 35", cep: "72896-668" }, { nome: "Quadra 36", cep: "72896-670" },
+                    { nome: "Quadra 37", cep: "72896-672" }, { nome: "Quadra 38", cep: "72896-674" },
+                    { nome: "Quadra 39", cep: "72896-676" }, { nome: "Quadra 40", cep: "72896-678" },
+                    { nome: "Quadra 41", cep: "72896-680" }, { nome: "Quadra 42", cep: "72896-682" },
+                    { nome: "Quadra 43", cep: "72896-684" }, { nome: "Quadra 44", cep: "72896-686" },
+                    { nome: "Quadra 45", cep: "72896-688" }, { nome: "Quadra 46", cep: "72896-690" },
+                    { nome: "Quadra 47", cep: "72896-692" }, { nome: "Quadra 48", cep: "72896-694" },
+                    { nome: "Quadra 49", cep: "72896-696" }, { nome: "Quadra 50", cep: "72896-698" },
+                    { nome: "Quadra 51", cep: "72896-700" }, { nome: "Quadra 52", cep: "72896-702" },
+                    { nome: "Quadra 53", cep: "72896-704" }, { nome: "Quadra 54", cep: "72896-706" },
+                    { nome: "Quadra 55", cep: "72896-708" }, { nome: "Quadra 56", cep: "72896-710" },
+                    { nome: "Quadra 57", cep: "72896-712" }, { nome: "Quadra 58", cep: "72896-714" },
+                    { nome: "Quadra 59", cep: "72896-716" }, { nome: "Quadra 60", cep: "72896-718" },
+                    { nome: "Quadra 61", cep: "72896-720" }, { nome: "Quadra 62", cep: "72896-722" },
+                    { nome: "Quadra 63", cep: "72896-724" }, { nome: "Quadra 64", cep: "72896-726" },
+                    { nome: "Quadra 65", cep: "72896-728" }, { nome: "Quadra 66", cep: "72896-730" },
+                    { nome: "Quadra 67", cep: "72896-732" }, { nome: "Quadra 68", cep: "72896-734" },
+                    { nome: "Quadra 69", cep: "72896-736" }, { nome: "Quadra 70", cep: "72896-738" },
+                    { nome: "Quadra 71", cep: "72896-740" }, { nome: "Quadra 72", cep: "72896-742" },
+                    { nome: "Quadra 73", cep: "72896-744" }, { nome: "Quadra 74", cep: "72896-746" },
+                    { nome: "Quadra 75", cep: "72896-748" }, { nome: "Quadra 76", cep: "72896-750" },
+                    { nome: "Quadra 77", cep: "72896-752" }, { nome: "Quadra 78", cep: "72896-754" },
+                    { nome: "Quadra 79", cep: "72896-756" }, { nome: "Quadra 80", cep: "72896-758" },
+                    { nome: "Quadra 81", cep: "72896-760" }, { nome: "Quadra 82", cep: "72896-762" },
+                    { nome: "Quadra 83", cep: "72896-764" }, { nome: "Quadra 84", cep: "72896-766" },
+                    { nome: "Quadra 85", cep: "72896-768" }, { nome: "Quadra 86", cep: "72896-770" },
+                    { nome: "Quadra 87", cep: "72896-772" }, { nome: "Quadra 88", cep: "72896-774" }
+                ]
+            },
+            {
+                bairro: "Parque Nápolis A",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72885-125" }, { nome: "Quadra 02", cep: "72885-179" },
+                    { nome: "Quadra 03", cep: "72885-176" }, { nome: "Quadra 04", cep: "72885-173" },
+                    { nome: "Quadra 05", cep: "72885-170" }, { nome: "Quadra 06", cep: "72885-167" },
+                    { nome: "Quadra 07", cep: "72885-155" }, { nome: "Quadra 08", cep: "72885-158" },
+                    { nome: "Quadra 09", cep: "72885-161" }, { nome: "Quadra 10", cep: "72885-164" },
+                    { nome: "Quadra 11", cep: "72885-152" }, { nome: "Quadra 12", cep: "72885-149" },
+                    { nome: "Quadra 13", cep: "72885-146" }, { nome: "Quadra 14", cep: "72885-143" },
+                    { nome: "Quadra 15", cep: "72885-128" }, { nome: "Quadra 16", cep: "72885-131" },
+                    { nome: "Quadra 17", cep: "72885-134" }, { nome: "Quadra 18", cep: "72885-137" },
+                    { nome: "Quadra 19", cep: "72885-140" }, { nome: "Quadra 20", cep: "72885-122" },
+                    { nome: "Quadra 21", cep: "72885-119" }, { nome: "Quadra 22", cep: "72885-116" },
+                    { nome: "Quadra 23", cep: "72885-113" }, { nome: "Quadra 24", cep: "72885-110" },
+                    { nome: "Quadra 25", cep: "72885-092" }, { nome: "Quadra 26", cep: "72885-095" },
+                    { nome: "Quadra 27", cep: "72885-098" }, { nome: "Quadra 28", cep: "72885-101" },
+                    { nome: "Quadra 29", cep: "72885-104" }, { nome: "Quadra 30", cep: "72885-107" },
+                    { nome: "Quadra 31", cep: "72885-089" }, { nome: "Quadra 32", cep: "72885-086" },
+                    { nome: "Quadra 33", cep: "72885-083" }, { nome: "Quadra 34", cep: "72885-080" },
+                    { nome: "Quadra 35", cep: "72885-077" }, { nome: "Quadra 36", cep: "72885-062" },
+                    { nome: "Quadra 37", cep: "72885-065" }, { nome: "Quadra 38", cep: "72885-068" },
+                    { nome: "Quadra 39", cep: "72885-071" }, { nome: "Quadra 40", cep: "72885-074" },
+                    { nome: "Quadra 41", cep: "72885-059" }, { nome: "Quadra 42", cep: "72885-056" },
+                    { nome: "Quadra 43", cep: "72885-053" }, { nome: "Quadra 44", cep: "72885-050" },
+                    { nome: "Quadra 45", cep: "72885-047" }, { nome: "Quadra 46", cep: "72885-032" },
+                    { nome: "Quadra 47", cep: "72885-035" }, { nome: "Quadra 48", cep: "72885-038" },
+                    { nome: "Quadra 49", cep: "72885-041" }, { nome: "Quadra 50", cep: "72885-044" },
+                    { nome: "Quadra 51", cep: "72885-026" }, { nome: "Quadra 52", cep: "72885-029" },
+                    { nome: "Quadra 53", cep: "72885-020" }, { nome: "Quadra 54", cep: "72885-023" }
+                ]
+            },
+            {
+                bairro: "Parque Nápolis B",
+                nivel2: [
+                    { nome: "Quadra 53", cep: "72883-151" }, { nome: "Quadra 55", cep: "72883-150" },
+                    { nome: "Quadra 56", cep: "72883-153" }, { nome: "Quadra 57", cep: "72883-156" },
+                    { nome: "Quadra 58", cep: "72883-162" }, { nome: "Quadra 59", cep: "72883-159" },
+                    { nome: "Quadra 60", cep: "72883-165" }, { nome: "Quadra 61", cep: "72883-168" },
+                    { nome: "Quadra 62", cep: "72883-171" }, { nome: "Quadra 63", cep: "72883-180" },
+                    { nome: "Quadra 64", cep: "72883-177" }, { nome: "Quadra 65", cep: "72883-174" },
+                    { nome: "Quadra 66", cep: "72883-183" }, { nome: "Quadra 67", cep: "72883-186" },
+                    { nome: "Quadra 68", cep: "72883-189" }, { nome: "Quadra 69", cep: "72883-192" },
+                    { nome: "Quadra 70", cep: "72883-201" }, { nome: "Quadra 71", cep: "72883-198" },
+                    { nome: "Quadra 72", cep: "72883-195" }, { nome: "Quadra 73", cep: "72883-204" },
+                    { nome: "Quadra 74", cep: "72883-207" }, { nome: "Quadra 75", cep: "72883-210" },
+                    { nome: "Quadra 76", cep: "72883-219" }, { nome: "Quadra 77", cep: "72883-216" },
+                    { nome: "Quadra 78", cep: "72883-213" }, { nome: "Quadra 79", cep: "72883-222" },
+                    { nome: "Quadra 80", cep: "72883-225" }
+                ]
+            },
+            {
+                bairro: "Parque Nova Friburgo A",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72887-018" }, { nome: "Quadra 02", cep: "72887-015" },
+                    { nome: "Quadra 03", cep: "72887-000" }, { nome: "Quadra 04", cep: "72887-003" },
+                    { nome: "Quadra 05", cep: "72887-012" }, { nome: "Quadra 06", cep: "72887-021" },
+                    { nome: "Quadra 07", cep: "72887-006" }, { nome: "Quadra 08", cep: "72887-009" },
+                    { nome: "Quadra 09", cep: "72887-024" }
+                ]
+            },
+            {
+                bairro: "Parque Nova Friburgo",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72887-210" }, { nome: "Quadra 02", cep: "72887-212" },
+                    { nome: "Quadra 03", cep: "72887-214" }, { nome: "Quadra 04", cep: "72887-216" },
+                    { nome: "Quadra 05", cep: "72887-218" }, { nome: "Quadra 06", cep: "72887-220" },
+                    { nome: "Quadra 07", cep: "72887-222" }, { nome: "Quadra 08", cep: "72887-224" },
+                    { nome: "Quadra 09", cep: "72887-226" }, { nome: "Quadra 10", cep: "72887-228" },
+                    { nome: "Quadra 11", cep: "72887-230" }, { nome: "Quadra 12", cep: "72887-232" },
+                    { nome: "Quadra 13", cep: "72887-234" }, { nome: "Quadra 14", cep: "72887-236" },
+                    { nome: "Quadra 15", cep: "72887-238" }, { nome: "Quadra 16", cep: "72887-240" },
+                    { nome: "Quadra 17", cep: "72887-242" }, { nome: "Quadra 18", cep: "72887-244" },
+                    { nome: "Quadra 19", cep: "72887-246" }, { nome: "Quadra 20", cep: "72887-248" },
+                    { nome: "Quadra 21", cep: "72887-250" }, { nome: "Quadra 22", cep: "72887-252" },
+                    { nome: "Quadra 23", cep: "72887-254" }, { nome: "Quadra 24", cep: "72887-256" },
+                    { nome: "Quadra 25", cep: "72887-258" }, { nome: "Quadra 26", cep: "72887-260" },
+                    { nome: "Quadra 27", cep: "72887-262" }, { nome: "Quadra 28", cep: "72887-264" },
+                    { nome: "Quadra 29", cep: "72887-266" }, { nome: "Quadra 30", cep: "72887-268" },
+                    { nome: "Quadra 31", cep: "72887-270" }, { nome: "Quadra 32", cep: "72887-272" },
+                    { nome: "Quadra 33", cep: "72887-274" }, { nome: "Quadra 34", cep: "72887-276" },
+                    { nome: "Quadra 35", cep: "72887-278" }, { nome: "Quadra 36", cep: "72887-280" },
+                    { nome: "Quadra 37", cep: "72887-282" }, { nome: "Quadra 38", cep: "72887-284" },
+                    { nome: "Quadra 39", cep: "72887-286" }, { nome: "Quadra 40", cep: "72887-288" },
+                    { nome: "Quadra 41", cep: "72887-290" }, { nome: "Quadra 42", cep: "72887-292" },
+                    { nome: "Quadra 43", cep: "72887-294" }, { nome: "Quadra 44", cep: "72887-296" },
+                    { nome: "Quadra 45", cep: "72887-298" }, { nome: "Quadra 46", cep: "72887-300" },
+                    { nome: "Quadra 47", cep: "72887-302" }, { nome: "Quadra 48", cep: "72887-304" },
+                    { nome: "Quadra 49", cep: "72887-306" }, { nome: "Quadra 50", cep: "72887-308" },
+                    { nome: "Quadra 51", cep: "72887-310" }, { nome: "Quadra 52", cep: "72887-312" },
+                    { nome: "Quadra 53", cep: "72887-314" }, { nome: "Quadra 54", cep: "72887-316" },
+                    { nome: "Quadra 55", cep: "72887-318" }, { nome: "Quadra 56", cep: "72887-320" },
+                    { nome: "Quadra 57", cep: "72887-322" }, { nome: "Quadra 58", cep: "72887-324" }
+                ]
+            },
+            {
+                bairro: "Quintas Itapuã",
+                nivel2: [
+                    { nome: "Quadra A", cep: "72897-604" }, { nome: "Quadra B", cep: "72897-606" },
+                    { nome: "Quadra C", cep: "72897-612" }, { nome: "Quadra D", cep: "72897-620" },
+                    { nome: "Quadra E", cep: "72897-624" }, { nome: "Quadra F", cep: "72897-608" },
+                    { nome: "Quadra G", cep: "72897-614" }, { nome: "Quadra H", cep: "72897-622" },
+                    { nome: "Quadra I", cep: "72897-626" }, { nome: "Quadra J", cep: "72897-628" },
+                    { nome: "Quadra L", cep: "72897-610" }, { nome: "Quadra M", cep: "72897-616" },
+                    { nome: "Quadra N", cep: "72897-618" }, { nome: "Quadra O", cep: "72897-600" },
+                    { nome: "Quadra P", cep: "72897-602" }
+                ]
+            },
+            {
+                bairro: "Residencial e Comercial Damha",
+                nivel2: [
+                    { nome: "Quadra A1", cep: "72897-501" }, { nome: "Quadra B1", cep: "72897-503" },
+                    { nome: "Quadra C1", cep: "72897-505" }, { nome: "Quadra D1", cep: "72897-507" },
+                    { nome: "Quadra E1", cep: "72897-509" }, { nome: "Quadra F1", cep: "72897-511" },
+                    { nome: "Quadra G1", cep: "72897-513" }, { nome: "Quadra H1", cep: "72897-515" },
+                    { nome: "Quadra I1", cep: "72897-517" }, { nome: "Quadra J1", cep: "72897-519" },
+                    { nome: "Quadra K1", cep: "72897-521" }, { nome: "Quadra L1", cep: "72897-523" },
+                    { nome: "Quadra M1", cep: "72897-525" }, { nome: "Quadra N1", cep: "72897-527" },
+                    { nome: "Quadra O-1", cep: "72897-529" }, { nome: "Quadra P-1", cep: "72897-531" },
+                    { nome: "Quadra Q-1", cep: "72897-533" }, { nome: "Quadra A2", cep: "72897-540" },
+                    { nome: "Quadra B2", cep: "72897-542" }, { nome: "Quadra C2", cep: "72897-544" },
+                    { nome: "Quadra D2", cep: "72897-546" }, { nome: "Quadra E2", cep: "72897-548" },
+                    { nome: "Quadra F2", cep: "72897-550" }, { nome: "Quadra G2", cep: "72897-552" },
+                    { nome: "Quadra H2", cep: "72897-554" }, { nome: "Quadra I2", cep: "72897-556" },
+                    { nome: "Quadra J2", cep: "72897-558" }, { nome: "Quadra K2", cep: "72897-560" },
+                    { nome: "Quadra L2", cep: "72897-562" }, { nome: "Quadra M2", cep: "72897-564" },
+                    { nome: "Quadra N2", cep: "72897-566" }, { nome: "Quadra O2", cep: "72897-568" },
+                    { nome: "Quadra P2", cep: "72897-570" }, { nome: "Quadra Q2", cep: "72897-572" },
+                    { nome: "Quadra R-2", cep: "72897-574" }, { nome: "Quadra S-2", cep: "72897-576" },
+                    { nome: "Quadra T-2", cep: "72897-578" }, { nome: "Quadra U-2", cep: "72897-580" },
+                    { nome: "Quadra V-2", cep: "72897-582" }, { nome: "Quadra W-2", cep: "72897-584" },
+                    { nome: "Quadra X-2", cep: "72897-586" }, { nome: "Quadra Y-2", cep: "72897-588" }
+                ]
+            },
+            {
+                bairro: "Parque do Distrito",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72890-000" }, { nome: "Quadra 02", cep: "72890-003" },
+                    { nome: "Quadra 03", cep: "72890-006" }, { nome: "Quadra 04", cep: "72890-015" },
+                    { nome: "Quadra 05", cep: "72890-012" }, { nome: "Quadra 06", cep: "72890-009" },
+                    { nome: "Quadra 07", cep: "72890-018" }, { nome: "Quadra 08", cep: "72890-021" },
+                    { nome: "Quadra 09", cep: "72890-024" }, { nome: "Quadra 10", cep: "72890-027" },
+                    { nome: "Quadra 11", cep: "72890-030" }, { nome: "Quadra 12", cep: "72890-033" },
+                    { nome: "Quadra 13", cep: "72890-057" }, { nome: "Quadra 14", cep: "72890-054" },
+                    { nome: "Quadra 15", cep: "72890-051" }, { nome: "Quadra 16", cep: "72890-048" },
+                    { nome: "Quadra 17", cep: "72890-045" }, { nome: "Quadra 18", cep: "72890-042" },
+                    { nome: "Quadra 19", cep: "72890-039" }, { nome: "Quadra 20", cep: "72890-036" },
+                    { nome: "Quadra 21", cep: "72890-060" }, { nome: "Quadra 22", cep: "72890-063" },
+                    { nome: "Quadra 23", cep: "72890-066" }, { nome: "Quadra 24", cep: "72890-069" },
+                    { nome: "Quadra 25", cep: "72890-072" }, { nome: "Quadra 26", cep: "72890-075" },
+                    { nome: "Quadra 27", cep: "72890-078" }, { nome: "Quadra 28", cep: "72890-081" },
+                    { nome: "Quadra 29", cep: "72890-105" }, { nome: "Quadra 30", cep: "72890-099" },
+                    { nome: "Quadra 31", cep: "72890-096" }, { nome: "Quadra 32", cep: "72890-093" },
+                    { nome: "Quadra 33", cep: "72890-084" }, { nome: "Quadra 34", cep: "72890-120" },
+                    { nome: "Quadra 35", cep: "72890-117" }, { nome: "Quadra 36", cep: "72890-114" },
+                    { nome: "Quadra 37", cep: "72890-111" }, { nome: "Quadra 38", cep: "72890-108" },
+                    { nome: "Quadra 39", cep: "72890-102" }, { nome: "Quadra 40", cep: "72890-090" },
+                    { nome: "Quadra 41", cep: "72890-087" }, { nome: "Quadra 42", cep: "72890-123" },
+                    { nome: "Quadra 43", cep: "72890-126" }, { nome: "Quadra 44", cep: "72890-129" },
+                    { nome: "Quadra 45", cep: "72890-132" }, { nome: "Quadra 46", cep: "72890-135" },
+                    { nome: "Quadra 47", cep: "72890-138" }, { nome: "Quadra 48", cep: "72890-141" },
+                    { nome: "Quadra 49", cep: "72890-144" }, { nome: "Quadra 50", cep: "72890-147" },
+                    { nome: "Quadra 51", cep: "72890-180" }, { nome: "Quadra 52", cep: "72890-177" },
+                    { nome: "Quadra 53", cep: "72890-174" }, { nome: "Quadra 54", cep: "72890-171" },
+                    { nome: "Quadra 55", cep: "72890-168" }, { nome: "Quadra 56", cep: "72890-165" },
+                    { nome: "Quadra 57", cep: "72890-162" }, { nome: "Quadra 58", cep: "72890-159" },
+                    { nome: "Quadra 59", cep: "72890-150" }, { nome: "Quadra 60", cep: "72890-156" },
+                    { nome: "Quadra 61", cep: "72890-153" }, { nome: "Quadra 62", cep: "72890-183" },
+                    { nome: "Quadra 63", cep: "72890-186" }, { nome: "Quadra 64", cep: "72890-189" },
+                    { nome: "Quadra 65", cep: "72890-192" }, { nome: "Quadra 66", cep: "72890-195" },
+                    { nome: "Quadra 67", cep: "72890-201" }, { nome: "Quadra 68", cep: "72890-198" },
+                    { nome: "Quadra 69", cep: "72890-204" }, { nome: "Quadra 70", cep: "72890-207" },
+                    { nome: "Quadra 71", cep: "72890-210" }, { nome: "Quadra 72", cep: "72890-213" },
+                    { nome: "Quadra 73", cep: "72890-246" }, { nome: "Quadra 74", cep: "72890-243" },
+                    { nome: "Quadra 75", cep: "72890-240" }, { nome: "Quadra 76", cep: "72890-237" },
+                    { nome: "Quadra 77", cep: "72890-234" }, { nome: "Quadra 78", cep: "72890-231" },
+                    { nome: "Quadra 79", cep: "72890-228" }, { nome: "Quadra 80", cep: "72890-225" },
+                    { nome: "Quadra 81", cep: "72890-222" }, { nome: "Quadra 82", cep: "72890-219" },
+                    { nome: "Quadra 83", cep: "72890-216" }, { nome: "Quadra 84", cep: "72890-249" },
+                    { nome: "Quadra 85", cep: "72890-252" }, { nome: "Quadra 86", cep: "72890-255" },
+                    { nome: "Quadra 87", cep: "72890-258" }, { nome: "Quadra 88", cep: "72890-270" },
+                    { nome: "Quadra 89", cep: "72890-267" }, { nome: "Quadra 90", cep: "72890-264" },
+                    { nome: "Quadra 91", cep: "72890-261" }
+                ]
+            },
+            {
+                bairro: "São Mateus",
+                nivel2: [
+                    { nome: "Quadra 8A", cep: "72887-460" }, { nome: "Quadra 15B", cep: "72887-463" },
+                    { nome: "Quadra 16A", cep: "72887-466" }, { nome: "Quadra 21A", cep: "72887-478" },
+                    { nome: "Quadra 21B", cep: "72887-475" }, { nome: "Quadra 23A", cep: "72887-511" },
+                    { nome: "Quadra 23B", cep: "72887-514" }, { nome: "Quadra 24A", cep: "72887-484" },
+                    { nome: "Quadra 24B", cep: "72887-481" }, { nome: "Quadra 27A", cep: "72887-490" },
+                    { nome: "Quadra 27B", cep: "72887-487" }, { nome: "Quadra 28A", cep: "72887-505" },
+                    { nome: "Quadra 28B", cep: "72887-508" }, { nome: "Quadra 30A", cep: "72887-499" },
+                    { nome: "Quadra 30B", cep: "72887-502" }, { nome: "Quadra 31A", cep: "72887-496" },
+                    { nome: "Quadra 31B", cep: "72887-493" }
+                ]
+            },
+            {
+                bairro: "Jardim ABC de Brasília",
+                nivel2: [
+                    { nome: "Quadra 01", cep: "72896-400" }, { nome: "Quadra 02", cep: "72896-402" },
+                    { nome: "Quadra 03", cep: "72896-404" }, { nome: "Quadra 04", cep: "72896-406" },
+                    { nome: "Quadra 05", cep: "72896-408" }, { nome: "Quadra 06", cep: "72896-410" },
+                    { nome: "Quadra 07", cep: "72896-412" }, { nome: "Quadra 08", cep: "72896-414" },
+                    { nome: "Quadra 09", cep: "72896-416" }, { nome: "Quadra 10", cep: "72896-418" },
+                    { nome: "Quadra 11", cep: "72896-420" }, { nome: "Quadra 12", cep: "72896-422" },
+                    { nome: "Quadra 13", cep: "72896-424" }, { nome: "Quadra 14", cep: "72896-426" },
+                    { nome: "Quadra 15", cep: "72896-428" }, { nome: "Quadra 16", cep: "72896-430" },
+                    { nome: "Quadra 17", cep: "72896-432" }, { nome: "Quadra 18", cep: "72896-434" },
+                    { nome: "Quadra 19", cep: "72896-436" }, { nome: "Quadra 20", cep: "72896-438" },
+                    { nome: "Quadra 21", cep: "72896-440" }, { nome: "Quadra 22", cep: "72896-442" },
+                    { nome: "Quadra 23", cep: "72896-444" }, { nome: "Quadra 24", cep: "72896-446" },
+                    { nome: "Quadra 25", cep: "72896-448" }, { nome: "Quadra 26", cep: "72896-450" },
+                    { nome: "Quadra 27", cep: "72896-452" }, { nome: "Quadra 28", cep: "72896-454" },
+                    { nome: "Quadra 29", cep: "72896-456" }, { nome: "Quadra 30", cep: "72896-458" },
+                    { nome: "Quadra 31", cep: "72896-460" }, { nome: "Quadra 32", cep: "72896-462" },
+                    { nome: "Quadra 33", cep: "72896-464" }, { nome: "Quadra 34", cep: "72896-466" },
+                    { nome: "Quadra 35", cep: "72896-468" }, { nome: "Quadra 36", cep: "72896-470" },
+                    { nome: "Quadra 37", cep: "72896-472" }, { nome: "Quadra 38", cep: "72896-474" },
+                    { nome: "Quadra 39", cep: "72896-476" }, { nome: "Quadra 40", cep: "72896-478" },
+                    { nome: "Quadra 41", cep: "72896-480" }, { nome: "Quadra 42", cep: "72896-482" },
+                    { nome: "Quadra 43", cep: "72896-484" }, { nome: "Quadra 44", cep: "72896-486" },
+                    { nome: "Quadra 45", cep: "72896-488" }, { nome: "Quadra 46", cep: "72896-490" },
+                    { nome: "Quadra 47", cep: "72896-492" }, { nome: "Quadra 48", cep: "72896-494" },
+                    { nome: "Quadra 49", cep: "72896-496" }, { nome: "Quadra 50", cep: "72896-498" },
+                    { nome: "Quadra 51", cep: "72896-500" }, { nome: "Quadra 52", cep: "72896-502" },
+                    { nome: "Quadra 53", cep: "72896-504" }, { nome: "Quadra 54", cep: "72896-506" },
+                    { nome: "Quadra 55", cep: "72896-508" }, { nome: "Quadra 56", cep: "72896-510" },
+                    { nome: "Quadra 57", cep: "72896-512" }, { nome: "Quadra 58", cep: "72896-514" },
+                    { nome: "Quadra 59", cep: "72896-516" }, { nome: "Quadra 60", cep: "72896-518" },
+                    { nome: "Quadra 61", cep: "72896-520" }, { nome: "Quadra 62", cep: "72896-522" },
+                    { nome: "Quadra 63", cep: "72896-524" }, { nome: "Quadra 64", cep: "72896-526" },
+                    { nome: "Quadra 65", cep: "72896-528" }, { nome: "Quadra 66", cep: "72896-530" },
+                    { nome: "Quadra 67", cep: "72896-532" }, { nome: "Quadra 68", cep: "72896-534" },
+                    { nome: "Quadra 69", cep: "72896-536" }, { nome: "Quadra 70", cep: "72896-538" },
+                    { nome: "Quadra 71", cep: "72896-540" }, { nome: "Quadra 72", cep: "72896-542" },
+                    { nome: "Quadra 73", cep: "72896-544" }, { nome: "Quadra 74", cep: "72896-546" },
+                    { nome: "Quadra 75", cep: "72896-548" }, { nome: "Quadra 76", cep: "72896-550" },
+                    { nome: "Quadra 77", cep: "72896-552" }, { nome: "Quadra 78", cep: "72896-554" },
+                    { nome: "Quadra 79", cep: "72896-556" }, { nome: "Quadra 80", cep: "72896-558" },
+                    { nome: "Quadra 81", cep: "72896-560" }, { nome: "Quadra 82", cep: "72896-562" },
+                    { nome: "Quadra 83", cep: "72896-564" }, { nome: "Quadra 84", cep: "72896-566" },
+                    { nome: "Quadra 85", cep: "72896-568" }, { nome: "Quadra 86", cep: "72896-570" },
+                    { nome: "Quadra 87", cep: "72896-572" }, { nome: "Quadra 88", cep: "72896-574" }
+                ]
+            },
+            {
+                bairro: "Mansões de Tapera Florida",
+                cep: "72887-336"
+            },
+            {
+                bairro: "Chácaras Saia Velha - B",
+                nivel2: [
+                    { nome: "Quadra 09", cep: "72885-520" }
+                ]
+            }
+        ];
+
+        // --- LÓGICA DA APLICAÇÃO ---
+        const areaResultados = document.getElementById('areaResultados');
+        let cepAtualParaCopia = null;
+
+        function criarCombobox(containerId, placeholder, items, onSelect) {
+            const container = document.getElementById(containerId);
+            let activeIndex = -1;
+            
+            container.innerHTML = `
+                <div class="relative w-full">
+                    <input type="text" placeholder="${placeholder}" class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none transition pr-10" autocomplete="off">
+                    <button tabindex="-1" class="clear-button absolute inset-y-0 right-0 flex items-center pr-3 hidden">
+                        <svg class="h-5 w-5 text-gray-400 hover:text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="options-container hidden absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"></div>
+            `;
+            const input = container.querySelector('input');
+            const optionsContainer = container.querySelector('.options-container');
+            const clearButton = container.querySelector('.clear-button');
+
+            function atualizarOpcoes(filtro = '') {
+                optionsContainer.innerHTML = '';
+                
+                const filtroNormalizado = filtro.toLowerCase();
+                const itensFiltrados = items.filter(item => {
+                    const itemNome = item.nome.toLowerCase();
+                    return itemNome.includes(filtroNormalizado);
+                });
+                
+                if (itensFiltrados.length === 0) {
+                    optionsContainer.innerHTML = `<div class="p-3 text-gray-500">Nenhum resultado encontrado.</div>`;
+                } else {
+                    itensFiltrados.forEach(item => {
+                        const optionDiv = document.createElement('div');
+                        optionDiv.className = 'p-3 hover:bg-blue-50 cursor-pointer';
+                        optionDiv.textContent = item.nome;
+                        optionDiv.addEventListener('click', () => selecionarItem(item));
+                        optionsContainer.appendChild(optionDiv);
+                    });
+                }
+                activeIndex = -1;
+            }
+
+            function selecionarItem(item) {
+                input.value = item.nome;
+                clearButton.classList.remove('hidden');
+                optionsContainer.classList.add('hidden');
+                activeIndex = -1;
+                onSelect(item);
+            }
+
+            function atualizarDestaque() {
+                const optionDivs = optionsContainer.querySelectorAll('div.p-3');
+                optionDivs.forEach((div, index) => {
+                    if (index === activeIndex) {
+                        div.classList.add('highlighted');
+                        div.scrollIntoView({ block: 'nearest' });
+                    } else {
+                        div.classList.remove('highlighted');
+                    }
+                });
+            }
+
+            input.addEventListener('input', () => {
+                atualizarOpcoes(input.value);
+                clearButton.classList.toggle('hidden', input.value.length === 0);
+                if (input.value.length > 0 && optionsContainer.classList.contains('hidden')) {
+                    optionsContainer.classList.remove('hidden');
+                }
+            });
+            input.addEventListener('focus', () => {
+                atualizarOpcoes(input.value);
+                optionsContainer.classList.remove('hidden');
+            });
+            input.addEventListener('keydown', (e) => {
+                const optionDivs = optionsContainer.querySelectorAll('div.p-3.hover\\:bg-blue-50');
+                if (optionsContainer.classList.contains('hidden')) return;
+                switch (e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        activeIndex = (activeIndex < optionDivs.length - 1) ? activeIndex + 1 : 0;
+                        atualizarDestaque();
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        activeIndex = (activeIndex > 0) ? activeIndex - 1 : optionDivs.length - 1;
+                        atualizarDestaque();
+                        break;
+                    case 'Enter':
+                        e.preventDefault();
+                        if (activeIndex > -1) { // Se um item estiver destacado
+                            optionDivs[activeIndex].click();
+                        } else if (optionDivs.length === 1) { // Se houver apenas uma opção
+                            optionDivs[0].click();
+                        }
+                        
+                        // Foca no próximo campo, se houver
+                        setTimeout(() => {
+                            if (containerId === 'comboBairro') {
+                                document.querySelector('#containerNivel2 input')?.focus();
+                            } else if (containerId === 'comboNivel2') {
+                                document.querySelector('#containerNivel3 input')?.focus();
+                            }
+                        }, 0);
+                        break;
+                    case 'Escape':
+                        optionsContainer.classList.add('hidden');
+                        break;
+                }
+            });
+            
+            clearButton.addEventListener('click', () => {
+                input.value = '';
+                clearButton.classList.add('hidden');
+                areaResultados.innerHTML = '';
+                cepAtualParaCopia = null;
+                optionsContainer.classList.add('hidden');
+
+                switch (containerId) {
+                    case 'comboBairro':
+                        document.getElementById('containerNivel2').classList.add('hidden');
+                        document.getElementById('containerNivel3').classList.add('hidden');
+                        break;
+                    case 'comboNivel2':
+                        document.getElementById('containerNivel3').classList.add('hidden');
+                        break;
+                }
+                input.focus();
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) {
+                    optionsContainer.classList.add('hidden');
+                }
+            });
+        }
+
+        // Funções de controle
+        function exibirNivel2(bairro) {
+            const dadosDoBairro = dadosCep.find(item => item.bairro === bairro.nome);
+            const containerNivel2 = document.getElementById('containerNivel2');
+            const labelNivel2 = document.querySelector('label[for="comboNivel2"]');
+            
+            document.getElementById('containerNivel3').classList.add('hidden');
+            containerNivel2.classList.add('hidden');
+            areaResultados.innerHTML = '';
+            cepAtualParaCopia = null;
+            
+            if (!dadosDoBairro) return;
+
+            if (dadosDoBairro.cep) {
+                exibirCEP(dadosDoBairro);
+                return;
+            }
+            
+            if (dadosDoBairro.nivel2) {
+                let placeholder = 'Selecione ou busque...';
+                let label = '2. Logradouro';
+                if (bairro.nome === 'Jardim Ouro Verde') {
+                    placeholder = 'Selecione ou busque a Quadra';
+                    label = '2. Quadra';
+                } else if (bairro.nome === 'Cidade Ocidental') {
+                    placeholder = 'Selecione ou busque a SQ';
+                    label = '2. Superquadra (SQ)';
+                } else {
+                     placeholder = 'Selecione ou busque a Quadra';
+                    label = '2. Quadra';
+                }
+                labelNivel2.textContent = label;
+                containerNivel2.classList.remove('hidden');
+                criarCombobox('comboNivel2', placeholder, dadosDoBairro.nivel2, processarSelecaoNivel2);
+            }
+        }
+
+        function processarSelecaoNivel2(itemNivel2) {
+            if (itemNivel2.nivel3) {
+                exibirNivel3(itemNivel2);
+            } else if (itemNivel2.cep) {
+                document.getElementById('containerNivel3').classList.add('hidden');
+                exibirCEP(itemNivel2);
+            }
+        }
+
+        function exibirNivel3(itemNivel2) {
+            const bairroSelecionado = document.querySelector('#comboBairro input').value;
+            const containerNivel3 = document.getElementById('containerNivel3');
+            const labelNivel3 = document.querySelector('label[for="comboNivel3"]');
+
+            areaResultados.innerHTML = '';
+            cepAtualParaCopia = null;
+            let placeholder = 'Selecione ou busque...';
+            let label = '3. Complemento';
+
+            if (bairroSelecionado === 'Jardim Ouro Verde') {
+                placeholder = 'Selecione ou busque o Conjunto';
+                label = '3. Conjunto';
+            } else if (bairroSelecionado === 'Cidade Ocidental') {
+                placeholder = 'Selecione ou busque a Quadra';
+                label = '3. Quadra';
+            }
+            
+            labelNivel3.textContent = label;
+            containerNivel3.classList.remove('hidden');
+            criarCombobox('comboNivel3', placeholder, itemNivel2.nivel3, exibirCEP);
+        }
+
+        function exibirCEP(itemFinal) {
+            if (itemFinal && itemFinal.cep) {
+                const cepSemHifen = itemFinal.cep.replace('-', '');
+                cepAtualParaCopia = cepSemHifen; // Armazena o CEP atual para o atalho Ctrl+C
+
+                areaResultados.innerHTML = `
+                    <div class="flex items-center justify-center gap-4">
+                        <div>
+                            <p class="text-lg text-gray-600">O CEP para o endereço selecionado é:</p>
+                            <p class="text-3xl font-bold text-blue-600">${itemFinal.cep}</p>
+                        </div>
+                        <button id="botaoCopiar" data-cep="${cepSemHifen}" class="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors duration-200">
+                            <svg id="copy-icon" class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            <svg id="check-icon" class="h-6 w-6 hidden text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                document.getElementById('botaoCopiar').addEventListener('click', copiarCEP);
+            }
+        }
+
+        function copiarCEP(e) {
+            const botao = e.currentTarget;
+            const cep = botao.dataset.cep;
+            const copyIcon = botao.querySelector('#copy-icon');
+            const checkIcon = botao.querySelector('#check-icon');
+            
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = cep;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+
+            copyIcon.classList.add('hidden');
+            checkIcon.classList.remove('hidden');
+            
+            setTimeout(() => {
+                checkIcon.classList.add('hidden');
+                copyIcon.classList.remove('hidden');
+            }, 1500);
+        }
+        
+        function iniciarAplicacao() {
+            const bairrosParaBusca = dadosCep.map(d => ({ nome: d.bairro }));
+            criarCombobox('comboBairro', 'Selecione ou busque o Bairro', bairrosParaBusca, exibirNivel2);
+        }
+        
+        function limparBusca() {
+            document.getElementById('containerNivel2').classList.add('hidden');
+            document.getElementById('containerNivel3').classList.add('hidden');
+            areaResultados.innerHTML = '';
+            cepAtualParaCopia = null;
+            iniciarAplicacao();
+        }
+
+        // Atalho Ctrl+C para copiar o CEP
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key.toLowerCase() === 'c' && cepAtualParaCopia) {
+                e.preventDefault();
+                const botaoCopiar = document.getElementById('botaoCopiar');
+                if (botaoCopiar) {
+                    botaoCopiar.click();
+                }
+            }
+        });
+
+        window.onload = () => {
+            iniciarAplicacao();
+            document.getElementById('botaoLimpar').addEventListener('click', limparBusca);
+        };
+
+    </script>
+</body>
+</html>
